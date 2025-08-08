@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Room from "@/models/roomModel";
-import PlayerStatus from "@/models/playerStatusModal";
+import PlayerStatus from "@/models/playerStatusModel";
 import { generateRandom4digitNumber } from "@/utils/generateRoomNumber";
 
 const createRoom = async (req: Request, res: Response): Promise<Response> => {
@@ -12,18 +12,23 @@ const createRoom = async (req: Request, res: Response): Promise<Response> => {
 
     const roomCode = generateRandom4digitNumber();
 
-    const playerStatus = new PlayerStatus({
-      isPlayerJoined: true,
-      playerId: userId,
-    });
-
     const newRoom = new Room({
       roomCode: roomCode,
       isActiveRoom: true,
       players: [userId],
     });
+
     const savedRoom = await newRoom.save();
+
+    // Create PlayerStatus with roomCode
+    const playerStatus = new PlayerStatus({
+      isPlayerJoined: true,
+      playerId: userId,
+      roomCode: savedRoom.roomCode,
+    });
+
     const savedPlayerStatus = await playerStatus.save();
+
     return res.status(201).json({
       message: "Room created successfully",
       room: {
@@ -52,24 +57,32 @@ const joinRoom = async (req: Request, res: Response): Promise<Response> => {
         .status(400)
         .json({ error: "Room code and User ID are required" });
     }
+
     const room = await Room.findOne({ roomCode });
     if (!room) {
       return res.status(404).json({ error: "Room not found" });
     }
+
     if (room.players.length >= 2) {
       return res.status(400).json({ error: "Room is full" });
     }
+
     if (room.players.includes(userId)) {
       return res.status(400).json({ error: "User already in room" });
     }
+
     room.players.push(userId);
+    const updatedRoom = await room.save();
+
+    // Create PlayerStatus with roomCode
     const playerStatus = new PlayerStatus({
       playerId: userId,
       isPlayerJoined: true,
+      roomCode: roomCode, // Added missing roomCode
     });
 
-    const updatedRoom = await room.save();
     const savedPlayerStatus = await playerStatus.save();
+
     return res.status(200).json({
       message: "Joined room successfully",
       room: {
@@ -95,35 +108,85 @@ const startGameRoom = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const { roomCode, playerNumber } = req.body;
-    if (!roomCode) {
-      return res.status(400).json({ error: "Room code is required" });
+    const { roomCode, userId } = req.body; // Remove playerNumber dependency
+    if (!roomCode || !userId) {
+      return res.status(400).json({
+        error: "Room code and User ID are required",
+      });
     }
-    const room = await Room.findOne({ roomCode });
 
+    const room = await Room.findOne({ roomCode });
     if (!room) {
       return res.status(404).json({ error: "Room not found" });
     }
 
-    if (playerNumber < 2) {
-      return res
-        .status(400)
-        .json({ error: "At least 2 players are required to start the game" });
+    // Check if requesting user is in the room
+    if (!room.players.includes(userId)) {
+      return res.status(400).json({
+        error: "You are not in this room",
+      });
+    }
+
+    // Check actual player count in room
+    if (room.players.length < 2) {
+      return res.status(400).json({
+        error:
+          "At least 2 players are required to start the game. Current players: " +
+          room.players.length,
+      });
     }
 
     if (room.isGameStarted) {
-      return res.status(400).json({ error: "Game has already started" });
+      return res.status(400).json({
+        error: "Game has already started",
+      });
     }
 
+    // Check if all players in room are ready
+    const playersStatus = await PlayerStatus.find({
+      roomCode,
+      playerId: { $in: room.players },
+    });
+
+    // Verify all players have PlayerStatus records
+    if (playersStatus.length !== room.players.length) {
+      return res.status(400).json({
+        error:
+          "Not all players have joined properly. Please ensure all players have joined the room.",
+      });
+    }
+
+    // Check if all players are ready and have secret codes
+    const unreadyPlayers = playersStatus.filter(
+      (status) => !status.isReady || !status.secretCode
+    );
+
+    if (unreadyPlayers.length > 0) {
+      return res.status(400).json({
+        error: `Cannot start game. ${unreadyPlayers.length} player(s) are not ready or haven't set their secret code.`,
+      });
+    }
+
+    // All validations passed, start the game
     const updatedRoom = await Room.findByIdAndUpdate(
       room._id,
       { isGameStarted: true },
       { new: true }
     );
+
+    // Set first player's turn (optional)
+    await PlayerStatus.findOneAndUpdate(
+      { roomCode, playerId: room.players[0] },
+      { hasTurn: true }
+    );
+
     return res.status(200).json({
       message: "Game started successfully",
       room: {
+        id: updatedRoom?._id,
+        roomCode: updatedRoom?.roomCode,
         isGameStarted: updatedRoom?.isGameStarted,
+        players: updatedRoom?.players,
       },
     });
   } catch (error) {
@@ -140,20 +203,55 @@ const exitRoom = async (req: Request, res: Response): Promise<Response> => {
         .status(400)
         .json({ error: "Room code and User ID are required" });
     }
+
     const room = await Room.findOne({ roomCode });
     if (!room) {
       return res.status(404).json({ error: "Room not found" });
     }
+
+    if (!room.players.includes(userId)) {
+      return res.status(400).json({ error: "User not in room" });
+    }
+
+    // Remove player from room
     room.players = room.players.filter(
       (player) => player.toString() !== userId
     );
+
+    // Remove player status - this clears their game state
+    await PlayerStatus.deleteOne({ playerId: userId, roomCode });
+
+    // If room becomes empty, delete the entire room
     if (room.players.length === 0) {
+      // Clean up all PlayerStatus records for this room
+      await PlayerStatus.deleteMany({ roomCode });
       await Room.deleteOne({ _id: room._id });
-      return res
-        .status(200)
-        .json({ message: "Room deleted as no players left" });
+
+      return res.status(200).json({
+        message: "Room deleted as no players left",
+        roomDeleted: true,
+      });
     }
+
+    // If game was started and only 1 player remains, reset game state
+    if (room.isGameStarted && room.players.length === 1) {
+      room.isGameStarted = false;
+
+      // Reset remaining player's status
+      await PlayerStatus.updateMany(
+        { roomCode },
+        {
+          isReady: false,
+          hasTurn: false,
+          currentGuess: null,
+          $unset: { secretCode: 1 }, // Remove secretCode
+          $set: { guessHistory: [] }, // Clear guess history
+        }
+      );
+    }
+
     const updatedRoom = await room.save();
+
     return res.status(200).json({
       message: "Exited room successfully",
       room: {
@@ -161,6 +259,7 @@ const exitRoom = async (req: Request, res: Response): Promise<Response> => {
         roomCode: updatedRoom.roomCode,
         players: updatedRoom.players,
         isActiveRoom: updatedRoom.isActiveRoom,
+        isGameStarted: updatedRoom.isGameStarted,
       },
     });
   } catch (error) {
@@ -177,10 +276,12 @@ const playerReady = async (req: Request, res: Response): Promise<Response> => {
         .status(400)
         .json({ error: "Room code and User ID are required" });
     }
+
     const room = await Room.findOne({ roomCode });
     if (!room) {
       return res.status(404).json({ error: "Room not found" });
     }
+
     if (!room.players.includes(userId)) {
       return res.status(400).json({ error: "User not in room" });
     }
@@ -190,16 +291,20 @@ const playerReady = async (req: Request, res: Response): Promise<Response> => {
       roomCode,
     });
 
-    if (playerStatus?.secretCode === null) {
+    if (!playerStatus) {
+      return res.status(404).json({ error: "Player status not found" });
+    }
+
+    // Check if secretCode exists and is not null/undefined
+    if (!playerStatus.secretCode) {
       return res
         .status(400)
         .json({ error: "You should enter your secret code first" });
     }
-    if (!playerStatus) {
-      return res.status(404).json({ error: "Player status not found" });
-    }
+
     playerStatus.isReady = true;
     const updatedPlayerStatus = await playerStatus.save();
+
     return res.status(200).json({
       message: "Player is ready",
       playerStatus: {
@@ -214,10 +319,232 @@ const playerReady = async (req: Request, res: Response): Promise<Response> => {
   }
 };
 
+const clearPlayerStatus = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const { roomCode, userId } = req.body;
+
+    if (!roomCode || !userId) {
+      return res
+        .status(400)
+        .json({ error: "Room code and User ID are required" });
+    }
+
+    const playerStatus = await PlayerStatus.findOne({
+      playerId: userId,
+      roomCode,
+    });
+
+    if (!playerStatus) {
+      return res.status(404).json({ error: "Player status not found" });
+    }
+
+    // Reset player status to initial state
+    const clearedStatus = await PlayerStatus.findByIdAndUpdate(
+      playerStatus._id,
+      {
+        isReady: false,
+        hasTurn: false,
+        currentGuess: null,
+        $unset: { secretCode: 1 }, // Remove secretCode
+        $set: { guessHistory: [] }, // Clear guess history
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      message: "Player status cleared successfully",
+      playerStatus: {
+        id: clearedStatus?._id,
+        playerId: clearedStatus?.playerId,
+        isPlayerJoined: clearedStatus?.isPlayerJoined,
+        isReady: clearedStatus?.isReady,
+        hasTurn: clearedStatus?.hasTurn,
+      },
+    });
+  } catch (error) {
+    console.error("Error clearing player status:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+const playerGuess = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { roomCode, userId, guess } = req.body;
+
+    if (!roomCode || !userId || guess === undefined) {
+      return res
+        .status(400)
+        .json({ error: "Room code, User ID, and guess are required" });
+    }
+
+    const playerStatus = await PlayerStatus.findOne({
+      playerId: userId,
+      roomCode,
+    });
+
+    if (!playerStatus) {
+      return res.status(404).json({ error: "Player status not found" });
+    }
+
+    // Update player's current guess and add to guess history
+    playerStatus.currentGuess = guess;
+    playerStatus.guessHistory.push(guess);
+    const updatedPlayerStatus = await playerStatus.save();
+
+    return res.status(200).json({
+      message: "Guess submitted successfully",
+      playerStatus: {
+        id: updatedPlayerStatus._id,
+        playerId: updatedPlayerStatus.playerId,
+        currentGuess: updatedPlayerStatus.currentGuess,
+        guessHistory: updatedPlayerStatus.guessHistory,
+      },
+    });
+  } catch (error) {
+    console.error("Error submitting guess:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+const playersGuessHistory = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const { roomCode, userId } = req.body;
+
+    if (!roomCode || !userId) {
+      return res
+        .status(400)
+        .json({ error: "Room code and User ID are required" });
+    }
+
+    const playerStatus = await PlayerStatus.findOne({
+      playerId: userId,
+      roomCode,
+    });
+
+    if (!playerStatus) {
+      return res.status(404).json({ error: "Player status not found" });
+    }
+
+    return res.status(200).json({
+      message: "Player guess history retrieved successfully",
+      guessHistory: playerStatus.guessHistory,
+    });
+  } catch (error) {
+    console.error("Error retrieving player guess history:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+const getRoomStatus = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const { roomCode } = req.params;
+
+    if (!roomCode) {
+      return res.status(400).json({ error: "Room code is required" });
+    }
+
+    const room = await Room.findOne({ roomCode });
+    if (!room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    // Get all player statuses for this room
+    const playersStatus = await PlayerStatus.find({
+      roomCode,
+      playerId: { $in: room.players },
+    }).populate("playerId", "username");
+
+    return res.status(200).json({
+      room: {
+        id: room._id,
+        roomCode: room.roomCode,
+        isActiveRoom: room.isActiveRoom,
+        isGameStarted: room.isGameStarted,
+        playersCount: room.players.length,
+      },
+      players: playersStatus.map((status) => ({
+        id: status.playerId,
+        isReady: status.isReady,
+        hasSecretCode: !!status.secretCode,
+        isJoined: status.isPlayerJoined,
+      })),
+      canStartGame:
+        room.players.length >= 2 &&
+        playersStatus.length === room.players.length &&
+        playersStatus.every((s) => s.isReady && s.secretCode) &&
+        !room.isGameStarted,
+    });
+  } catch (error) {
+    console.error("Error getting room status:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+const setSecretCode = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  try {
+    const { roomCode, userId, secretCode } = req.body;
+
+    if (!roomCode || !userId || !secretCode) {
+      return res.status(400).json({
+        error: "Room code, User ID, and secret code are required",
+      });
+    }
+
+    // Validate secret code (4 digits)
+    if (!/^\d{4}$/.test(secretCode.toString())) {
+      return res.status(400).json({
+        error: "Secret code must be exactly 4 digits",
+      });
+    }
+
+    const playerStatus = await PlayerStatus.findOne({
+      playerId: userId,
+      roomCode,
+    });
+
+    if (!playerStatus) {
+      return res.status(404).json({ error: "Player status not found" });
+    }
+
+    // Update secret code
+    playerStatus.secretCode = parseInt(secretCode);
+    const updatedPlayerStatus = await playerStatus.save();
+
+    return res.status(200).json({
+      message: "Secret code set successfully",
+      playerStatus: {
+        id: updatedPlayerStatus._id,
+        playerId: updatedPlayerStatus.playerId,
+        hasSecretCode: !!updatedPlayerStatus.secretCode,
+      },
+    });
+  } catch (error) {
+    console.error("Error setting secret code:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 export default {
   createRoom,
   joinRoom,
   startGameRoom,
   exitRoom,
   playerReady,
+  clearPlayerStatus,
+  playerGuess,
+  playersGuessHistory,
+  getRoomStatus,
+  setSecretCode,
 };

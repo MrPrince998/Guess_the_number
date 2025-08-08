@@ -33,11 +33,15 @@
     "emitDecoratorMetadata": true
   },
   "include": [
-    "src/**/*",
-    "src/controller"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist"
-  ]
+  ],
+  "ts-node": {
+    "require": [
+      "tsconfig-paths/register"
+    ]
+  }
 }

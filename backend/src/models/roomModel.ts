@@ -31,10 +31,10 @@ const roomSchema = new Schema(
       default: false,
     },
     roomCode: {
-      type: Number,
-      default: null,
+      type: String,
+      required: true, 
+      unique: true, 
     },
-
     isGameStarted: {
       type: Boolean,
       default: false,

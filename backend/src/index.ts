@@ -1,38 +1,45 @@
+import "module-alias/register";
 import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import cors from "cors";
 
 // Import routes
-import userRoutes from "@/routes/userRotues";
-import roomrouter from "@/routes/roomRoutes";
+import userRoutes from "./routes/userRoutes";
+import roomRouter from "./routes/roomRoutes";
+import authController from "./auth/auth";
 
 // Load env variables
 dotenv.config();
-console.log("MONGO_URI:", process.env.Moongodb_URL);
-console.log("MONGO_URI:", process.env.PORT);
 
 const app = express();
+
+// Middleware
+app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT;
-const Moongodb_URL = process.env.Moongodb_URL as string;
+const PORT = process.env.PORT || 4000;
+const MONGODB_URL = process.env.MONGODB_URL as string;
 
-// Root route
+// Routes
 app.use("/api", userRoutes);
-app.use("/api/room", roomrouter);
+app.use("/api/room", roomRouter);
+
+// Auth routes
+app.post("/api/auth/register", authController.register);
+app.post("/api/auth/login", authController.login);
 
 // Connect to MongoDB
 mongoose
-  .connect(Moongodb_URL)
+  .connect(MONGODB_URL)
   .then(() => {
     console.log("✅ Connected to MongoDB");
 
-    // Start server only after DB connects
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on http://localhost:${PORT}`);
     });
   })
   .catch((error) => {
     console.error("❌ MongoDB connection error:", error);
-    process.exit(1); // Optional: crash the app if DB fails
+    process.exit(1);
   });

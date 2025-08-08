@@ -1,6 +1,6 @@
 // controllers/userController.ts
 import { Request, Response } from "express";
-import User from "../models/userModel.js";
+import User from "@/models/userModel";
 
 interface AuthRequest extends Request {
   userId?: string;

@@ -7,6 +7,11 @@ const playerStatusSchema = new Schema(
       ref: "User",
       required: true,
     },
+    role: {
+      type: String,
+      ennum: ["guest", "user"],
+      default: "guest",
+    },
     roomCode: {
       type: String,
       required: true,

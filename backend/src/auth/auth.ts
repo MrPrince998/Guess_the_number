@@ -65,7 +65,7 @@ const login = async (req: Request, res: Response): Promise<Response | void> => {
       return res.status(401).json({ error: "Invalid password" });
     }
 
-    const token = generateToken(user._id.toString());
+    const token = generateToken(user._id.toString(), "user");
 
     res.status(200).json({
       message: "Login successful",

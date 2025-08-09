@@ -2,6 +2,11 @@ import { Request, Response } from "express";
 import Room from "@/models/roomModel";
 import PlayerStatus from "@/models/playerStatusModel";
 import { generateRandom4digitNumber } from "@/utils/generateRoomNumber";
+import {
+  generateRandomIds,
+  generateRandomUsername,
+  generateToken,
+} from "@/utils/generateToken";
 
 const createRoom = async (req: Request, res: Response): Promise<Response> => {
   try {
@@ -25,6 +30,7 @@ const createRoom = async (req: Request, res: Response): Promise<Response> => {
       isPlayerJoined: true,
       playerId: userId,
       roomCode: savedRoom.roomCode,
+      role: "user",
     });
 
     const savedPlayerStatus = await playerStatus.save();
@@ -41,6 +47,7 @@ const createRoom = async (req: Request, res: Response): Promise<Response> => {
         id: savedPlayerStatus._id,
         playerId: savedPlayerStatus.playerId,
         isPlayerJoined: savedPlayerStatus.isPlayerJoined,
+        role: savedPlayerStatus.role,
       },
     });
   } catch (error) {
@@ -52,13 +59,15 @@ const createRoom = async (req: Request, res: Response): Promise<Response> => {
 const joinRoom = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { roomCode, userId } = req.body;
-    if (!roomCode || !userId) {
+
+    if (!roomCode) {
       return res
         .status(400)
         .json({ error: "Room code and User ID are required" });
     }
 
     const room = await Room.findOne({ roomCode });
+
     if (!room) {
       return res.status(404).json({ error: "Room not found" });
     }
@@ -67,18 +76,31 @@ const joinRoom = async (req: Request, res: Response): Promise<Response> => {
       return res.status(400).json({ error: "Room is full" });
     }
 
-    if (room.players.includes(userId)) {
+    let playerId = userId;
+    let guestUsername;
+    let guestToken;
+    let role = "user";
+
+    if (!userId) {
+      playerId = generateRandomIds(12);
+      guestUsername = generateRandomUsername();
+      guestToken = generateToken(playerId, "guest");
+      role = "guest";
+    }
+
+    if (room.players.includes(playerId)) {
       return res.status(400).json({ error: "User already in room" });
     }
 
-    room.players.push(userId);
+    room.players.push(playerId);
     const updatedRoom = await room.save();
 
     // Create PlayerStatus with roomCode
     const playerStatus = new PlayerStatus({
-      playerId: userId,
+      playerId: playerId,
       isPlayerJoined: true,
-      roomCode: roomCode, // Added missing roomCode
+      roomCode: roomCode,
+      role: role,
     });
 
     const savedPlayerStatus = await playerStatus.save();
@@ -95,7 +117,12 @@ const joinRoom = async (req: Request, res: Response): Promise<Response> => {
         id: savedPlayerStatus._id,
         playerId: savedPlayerStatus.playerId,
         isPlayerJoined: savedPlayerStatus.isPlayerJoined,
+        role: savedPlayerStatus.role,
       },
+      ...(guestToken && {
+        token: guestToken,
+        username: guestUsername,
+      }),
     });
   } catch (error) {
     console.error("Error joining room:", error);
@@ -476,6 +503,7 @@ const getRoomStatus = async (
         isReady: status.isReady,
         hasSecretCode: !!status.secretCode,
         isJoined: status.isPlayerJoined,
+        role: status.role || "user",
       })),
       canStartGame:
         room.players.length >= 2 &&

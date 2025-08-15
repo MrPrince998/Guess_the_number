@@ -7,7 +7,7 @@ import cors from "cors";
 // Import routes
 import userRoutes from "./routes/userRoutes";
 import roomRouter from "./routes/roomRoutes";
-import authController from "./auth/auth";
+import authRoutes from "./routes/authRoutes";
 
 // Load env variables
 dotenv.config();
@@ -26,8 +26,7 @@ app.use("/api", userRoutes);
 app.use("/api/room", roomRouter);
 
 // Auth routes
-app.post("/api/auth/register", authController.register);
-app.post("/api/auth/login", authController.login);
+app.use("/api", authRoutes);
 
 // Connect to MongoDB
 mongoose

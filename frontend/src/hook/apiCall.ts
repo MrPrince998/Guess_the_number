@@ -60,43 +60,54 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token expired or invalid
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      localStorage.removeItem("user");
+      window.location.href = "/";
     }
     return Promise.reject(error);
   }
 );
 
-// GET Hook with better error handling
+// ✅ FIXED: Better query options interface
+interface QueryOptions {
+  enabled?: boolean;
+  staleTime?: number;
+  refetchOnWindowFocus?: boolean;
+  refetchInterval?: number | false;
+  refetchIntervalInBackground?: boolean;
+}
+
+// ✅ FIXED: GET Hook with clearer logic
 export const useGet = <T>(
   key: string | string[],
   url: string,
-  options?: {
-    enabled?: boolean;
-    staleTime?: number;
-    refetchOnWindowFocus?: boolean;
-  }
+  options?: QueryOptions
 ): UseQueryResult<T, AxiosError<ApiError>> => {
   return useQuery({
     queryKey: Array.isArray(key) ? key : [key],
     queryFn: async () => {
       const response = await axiosInstance.get<ApiResponse<T>>(url);
-      return response.data.data || (response.data as T);
+      return (response.data?.data ?? response.data) as T;
     },
     enabled: options?.enabled ?? true,
-    staleTime: options?.staleTime ?? 5 * 60 * 1000, // 5 minutes
+    staleTime: options?.staleTime ?? 5 * 60 * 1000, // 5 minutes default
     refetchOnWindowFocus: options?.refetchOnWindowFocus ?? false,
+    refetchInterval: options?.refetchInterval ?? false, // ✅ No polling by default
+    refetchIntervalInBackground: options?.refetchIntervalInBackground ?? false,
   });
 };
 
-// POST/PUT/DELETE Hook with better typing
+// ✅ FIXED: Mutation options interface
+interface MutationOptions<TData> {
+  invalidateKeys?: string[];
+  onSuccessCallback?: (data: TData) => void;
+  onErrorCallback?: (error: AxiosError<ApiError>) => void;
+}
+
+// ✅ FIXED: POST/PUT/DELETE Hook with cleaner implementation
 export const useMutationApi = <TData = unknown, TVariables = ApiPayload>(
   method: "post" | "put" | "delete" | "patch",
   url: string,
-  options?: {
-    invalidateKeys?: string[];
-    onSuccessCallback?: (data: TData) => void;
-    onErrorCallback?: (error: AxiosError<ApiError>) => void;
-  }
+  options?: MutationOptions<TData>
 ): UseMutationResult<TData, AxiosError<ApiError>, TVariables> => {
   const queryClient = useQueryClient();
 
@@ -115,13 +126,16 @@ export const useMutationApi = <TData = unknown, TVariables = ApiPayload>(
           response = await axiosInstance.patch<ApiResponse<TData>>(url, data);
           break;
         case "delete":
-          response = await axiosInstance.delete<ApiResponse<TData>>(url);
+          response = await axiosInstance.delete<ApiResponse<TData>>(url, {
+            data,
+          });
           break;
         default:
           throw new Error(`Invalid method: ${method}`);
       }
 
-      return response.data.data as TData;
+      // ✅ FIXED: Better response data extraction
+      return (response.data?.data ?? response.data) as TData;
     },
     onSuccess: (data) => {
       // Invalidate queries
@@ -141,25 +155,21 @@ export const useMutationApi = <TData = unknown, TVariables = ApiPayload>(
   });
 };
 
-// Simplified wrapper hooks
+// ✅ FIXED: Simplified wrapper hooks
 export const PostHook = <TData = unknown, TVariables = ApiPayload>(
   method: "post" | "put" | "delete" | "patch",
   url: string,
-  key?: string[]
+  invalidateKeys?: string[]
 ) => {
   return useMutationApi<TData, TVariables>(method, url, {
-    invalidateKeys: key,
+    invalidateKeys,
   });
 };
 
 export const GetHook = <T>(
   key: string | string[],
   url: string,
-  options?: {
-    enabled?: boolean;
-    staleTime?: number;
-    refetchOnWindowFocus?: boolean;
-  }
+  options?: QueryOptions
 ) => {
   return useGet<T>(key, url, options);
 };

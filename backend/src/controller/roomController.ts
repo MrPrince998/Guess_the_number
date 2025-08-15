@@ -31,6 +31,7 @@ const createRoom = async (req: Request, res: Response): Promise<Response> => {
       playerId: userId,
       roomCode: savedRoom.roomCode,
       role: "user",
+      lastSeen: Date.now(),
     });
 
     const savedPlayerStatus = await playerStatus.save();
@@ -101,6 +102,7 @@ const joinRoom = async (req: Request, res: Response): Promise<Response> => {
       isPlayerJoined: true,
       roomCode: roomCode,
       role: role,
+      lastSeen: Date.now(),
     });
 
     const savedPlayerStatus = await playerStatus.save();
@@ -484,10 +486,14 @@ const getRoomStatus = async (
       return res.status(404).json({ error: "Room not found" });
     }
 
+    // Check if player is active or not
+    const activeSince = new Date(Date.now() - 30 * 1000);
+
     // Get all player statuses for this room
     const playersStatus = await PlayerStatus.find({
       roomCode,
       playerId: { $in: room.players },
+      lastSeen: { $gte: activeSince }, // NEW filter
     }).populate("playerId", "username");
 
     return res.status(200).json({
@@ -564,6 +570,33 @@ const setSecretCode = async (
   }
 };
 
+const heartbeat = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { roomCode, userId } = req.body;
+
+    if (!roomCode || !userId) {
+      return res
+        .status(400)
+        .json({ error: "Room code and User ID are required" });
+    }
+
+    const playerStatus = await PlayerStatus.findOneAndUpdate(
+      { roomCode, playerId: userId },
+      { lastSeen: Date.now() },
+      { new: true }
+    );
+
+    if (!playerStatus) {
+      return res.status(404).json({ error: "Player not found in this room" });
+    }
+
+    return res.status(200).json({ message: "Heartbeat updated" });
+  } catch (error) {
+    console.error("Error updating heartbeat:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 export default {
   createRoom,
   joinRoom,
@@ -575,4 +608,5 @@ export default {
   playersGuessHistory,
   getRoomStatus,
   setSecretCode,
+  heartbeat,
 };

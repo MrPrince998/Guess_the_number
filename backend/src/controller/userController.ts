@@ -11,7 +11,7 @@ const getMyProfile = async (
   res: Response
 ): Promise<Response | void> => {
   try {
-    const userId = req.userId;
+    const userId = req.params.id;
 
     if (!userId) {
       return res.status(400).json({ error: "Missing user ID" });

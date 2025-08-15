@@ -9,7 +9,7 @@ const playerStatusSchema = new Schema(
     },
     role: {
       type: String,
-      ennum: ["guest", "user"],
+      enum: ["guest", "user"],
       default: "guest",
     },
     roomCode: {
@@ -18,7 +18,6 @@ const playerStatusSchema = new Schema(
     },
     secretCode: {
       type: Number,
-      required: false,
     },
     isPlayerJoined: {
       type: Boolean,
@@ -59,7 +58,10 @@ const playerStatusSchema = new Schema(
 );
 
 // Add compound index for efficient queries
-playerStatusSchema.index({ playerId: 1, roomCode: 1 }, { unique: true });
+playerStatusSchema.index(
+  { playerId: 1, roomCode: 1 },
+  { unique: true, name: "player_room_unique_idx" }
+);
 
 const PlayerStatus = mongoose.model("PlayerStatus", playerStatusSchema);
 export default PlayerStatus;

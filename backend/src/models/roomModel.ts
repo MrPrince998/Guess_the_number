@@ -32,8 +32,8 @@ const roomSchema = new Schema(
     },
     roomCode: {
       type: String,
-      required: true, 
-      unique: true, 
+      required: true,
+      unique: true,
     },
     isGameStarted: {
       type: Boolean,
@@ -44,5 +44,7 @@ const roomSchema = new Schema(
     timestamps: true,
   }
 );
+
+roomSchema.index({ roomCode: 1 }, { unique: true });
 
 export default mongoose.model("Room", roomSchema);

@@ -1,0 +1,291 @@
+paths:
+  /api/room/create:
+    post:
+      tags:
+        - Room
+      summary: Create a new game room
+      description: Creates a new room and returns the room details. Requires authentication.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  description: The ID of the user creating the room.
+      responses:
+        "201":
+          description: Room created successfully.
+        "401":
+          description: Unauthorized.
+
+  /api/room/join:
+    post:
+      tags:
+        - Room
+      summary: Join an existing game room
+      description: Allows a player (registered or guest) to join a room using a room code.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roomCode:
+                  type: string
+                  description: The 4-character code of the room to join.
+                userId:
+                  type: string
+                  description: The user's ID if logged in. Send null or omit for a guest user.
+      responses:
+        "200":
+          description: Successfully joined the room.
+        "404":
+          description: Room not found.
+        "409":
+          description: Room is full or game has already started.
+
+  /api/room/rooms/{roomCode}/players/{userId}:
+    delete:
+      tags:
+        - Room Actions
+      summary: Exit a room
+      description: Removes a player from a specified room.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomCode
+          required: true
+          schema:
+            type: string
+          description: The code of the room to exit.
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: The ID of the player exiting.
+      responses:
+        "200":
+          description: Player successfully removed from the room.
+        "404":
+          description: Room or player not found.
+
+  /api/room/rooms/{roomCode}/start:
+    patch:
+      tags:
+        - Game Actions
+      summary: Start the game
+      description: Starts the game in the specified room if all conditions are met.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomCode
+          required: true
+          schema:
+            type: string
+          description: The room to start the game in.
+      responses:
+        "200":
+          description: Game started successfully.
+        "400":
+          description: Cannot start game (e.g., not enough players).
+
+  /api/room/rooms/{roomCode}/players/{userId}/ready:
+    patch:
+      tags:
+        - Player Actions
+      summary: Mark player as ready
+      description: Toggles the ready status of a player in a room.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomCode
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Player status updated.
+        "404":
+          description: Player or room not found.
+
+  /api/room/rooms/{roomCode}/players/{userId}/secret:
+    put:
+      tags:
+        - Player Actions
+      summary: Set secret code
+      description: Allows a player to set their secret 4-digit code for the game.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomCode
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                secretCode:
+                  type: string
+                  description: The 4-digit secret code.
+                  example: "1234"
+      responses:
+        "200":
+          description: Secret code set successfully.
+        "400":
+          description: Invalid secret code format.
+
+  /api/room/rooms/{roomCode}/players/{userId}/guess:
+    put:
+      tags:
+        - Player Actions
+      summary: Submit a guess
+      description: A player submits a guess for the opponent's secret code.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomCode
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                guess:
+                  type: string
+                  description: The 4-digit guess.
+                  example: "5678"
+      responses:
+        "200":
+          description: Guess submitted and feedback returned.
+        "400":
+          description: Invalid guess or not the player's turn.
+
+  /api/room/rooms/{roomCode}/status:
+    get:
+      tags:
+        - Room Status
+      summary: Get room status
+      description: Retrieves the current status of a room, including players and game state.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomCode
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Room status retrieved successfully.
+        "404":
+          description: Room not found.
+
+  /api/room/rooms/{roomCode}/players/{userId}/guesses:
+    get:
+      tags:
+        - Room Status
+      summary: Get player's guess history
+      description: Retrieves the guess history for a specific player in a room.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomCode
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Guess history retrieved.
+        "404":
+          description: Player or room not found.
+
+  /api/room/rooms/{roomCode}/players/{userId}/status:
+    patch:
+      tags:
+        - Player Actions
+      summary: Clear/Reset player status
+      description: Resets the status of a player in a room.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomCode
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Player status cleared.
+        "404":
+          description: Player or room not found.
+
+  /api/room/rooms/{roomCode}/players/{userId}/heartbeat:
+    patch:
+      tags:
+        - Player Actions
+      summary: Player heartbeat
+      description: Updates the 'lastSeen' timestamp for a player to keep them active in the room.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: roomCode
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Heartbeat updated successfully.
+        "404":
+          description: Player not found in this room.

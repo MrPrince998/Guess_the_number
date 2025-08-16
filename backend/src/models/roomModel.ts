@@ -5,8 +5,8 @@ const roomSchema = new Schema(
     players: {
       type: [
         {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
+          type: String, // ✅ CHANGED: Use String instead of Schema.Types.ObjectId
+          required: true,
         },
       ],
       validate: [
@@ -26,6 +26,10 @@ const roomSchema = new Schema(
         },
       ],
     },
+    roomCreator: {
+      type: String,
+      required: true,
+    },
     isActiveRoom: {
       type: Boolean,
       default: false,
@@ -33,7 +37,7 @@ const roomSchema = new Schema(
     roomCode: {
       type: String,
       required: true,
-      unique: true,
+      // unique: true,
     },
     isGameStarted: {
       type: Boolean,

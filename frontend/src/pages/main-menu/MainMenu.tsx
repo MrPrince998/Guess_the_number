@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import LoginSignup from "../login-page/LoginSignup";
 import CreateRoom from "@/components/model/CreateRoom";
 import JoinRoom from "@/components/model/JoinRoom";
+import { BaseURL } from "@/components/constant/constant";
 
 export interface CreateGameResponse {
   message: string;
@@ -25,12 +26,14 @@ export interface CreateGameResponse {
     roomCode: string;
     players: string[];
     isActiveRoom: boolean;
+    playersCount: number;
   };
   playerStatus: {
     id: string;
     playerId: string;
     isPlayerJoined: boolean;
     role: string;
+    isReady: boolean;
   };
 }
 
@@ -44,6 +47,8 @@ interface RoomDetails {
   players: string[];
   isActiveRoom: boolean;
   isGameStarted?: boolean;
+  playersCount?: number;
+  roomCreator?: string;
 }
 
 export interface UserDetails {
@@ -57,6 +62,24 @@ export interface UserDetails {
   userWinStreak: number;
 }
 
+export interface RoomPlayer {
+  id: string;
+  isReady: boolean;
+  hasSecretCode: boolean;
+  isJoined: boolean;
+  role: string;
+}
+
+export interface roomStatus {
+  room: RoomDetails;
+  players: RoomPlayer[];
+  canStartGame: boolean;
+}
+
+interface HeartBeatResponse {
+  message: string;
+}
+
 const MainMenu = () => {
   const navigate = useNavigate();
   const [openDialog, setOpenDialog] = useState<
@@ -66,7 +89,6 @@ const MainMenu = () => {
   const [roomDetails, setRoomDetails] = useState<RoomDetails | null>(null);
   const [userId, setUserId] = useState<string>("");
 
-  // ✅ FIXED: Initialize userId on component mount
   useEffect(() => {
     const user = localStorage.getItem("user");
     if (user) {
@@ -79,18 +101,47 @@ const MainMenu = () => {
     }
   }, []);
 
-  // ✅ FIXED: Fetch user profile with proper error handling
+  const guestPlayer = userId.startsWith("guest_");
+
   const { data: userDetails, error: userError } = GetHook<UserDetails>(
     ["userProfile", userId],
     `/api/user/profile/${userId}`,
     {
-      enabled: !!userId, // Only fetch if userId exists
+      enabled: !!userId && !guestPlayer, // Only fetch if userId exists
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-      refetchOnWindowFocus: false, // Don't refetch on window focus
+      refetchOnWindowFocus: true, // Don't refetch on window focus
+      refetchInterval: 5000,
     }
   );
 
-  // ✅ FIXED: Simplified getUserId function
+  console.log("User Details:", userId.startsWith("guest-"));
+
+  const roomCode = roomDetails?.roomCode || ""; // helper
+
+  const getRoomStatus = GetHook<roomStatus>(
+    ["roomStatus", roomCode],
+    roomCode ? `${BaseURL}/api/room/rooms/${roomCode}/status` : "",
+    {
+      enabled: !!roomCode,
+      refetchOnWindowFocus: true,
+      refetchInterval: 5000,
+      refetchIntervalInBackground: true,
+    }
+  );
+
+  const playerHearbeat = GetHook<HeartBeatResponse>(
+    ["heartbeat", roomCode, userId],
+    roomCode && userId
+      ? `${BaseURL}/api/room/rooms/${roomCode}/players/${userId}/heartbeat`
+      : "",
+    {
+      enabled: !!roomCode && !!userId,
+      refetchOnWindowFocus: true,
+      refetchInterval: 15000,
+      refetchIntervalInBackground: true,
+    }
+  );
+
   const getUserId = (): string | null => {
     return userId; // Use the state instead of re-parsing localStorage
   };
@@ -99,7 +150,6 @@ const MainMenu = () => {
     toast.error("This feature is under maintenance.");
   };
 
-  // ✅ FIXED: Create game mutation
   const { mutate, isPending } = PostHook<CreateGameResponse, CreateGamePayload>(
     "post",
     "/api/room/create",
@@ -165,7 +215,8 @@ const MainMenu = () => {
               <DialogHeader>
                 <DialogTitle>Choose Game Mode</DialogTitle>
               </DialogHeader>
-              <DialogDescription className="flex flex-col items-center gap-4 py-4">
+              <DialogDescription></DialogDescription>
+              <div className="flex flex-col items-center gap-4 py-4">
                 <Button
                   className="w-full py-4 font-bold text-lg"
                   onClick={handleMaintainence}
@@ -195,14 +246,13 @@ const MainMenu = () => {
                   variant="ghost"
                   className="w-full py-4 text-secondary font-bold text-lg"
                   onClick={() => {
-                    setOpenDialog(null);
-                    navigate("/join-room");
+                    setOpenDialog("joinRoom");
                   }}
                 >
                   <Link className="mr-2" />
                   Join Game
                 </Button>
-              </DialogDescription>
+              </div>
             </DialogContent>
           </Dialog>
 
@@ -224,23 +274,21 @@ const MainMenu = () => {
                   How to Play
                 </DialogTitle>
               </DialogHeader>
-              <DialogDescription>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    <strong>1.</strong> Create or join a room with another
-                    player
-                  </p>
-                  <p>
-                    <strong>2.</strong> Set your secret 4-digit number
-                  </p>
-                  <p>
-                    <strong>3.</strong> Take turns guessing each other's number
-                  </p>
-                  <p>
-                    <strong>4.</strong> First to guess correctly wins!
-                  </p>
-                </div>
-              </DialogDescription>
+              <DialogDescription></DialogDescription>
+              <div className="space-y-2 text-sm">
+                <p>
+                  <strong>1.</strong> Create or join a room with another player
+                </p>
+                <p>
+                  <strong>2.</strong> Set your secret 4-digit number
+                </p>
+                <p>
+                  <strong>3.</strong> Take turns guessing each other's number
+                </p>
+                <p>
+                  <strong>4.</strong> First to guess correctly wins!
+                </p>
+              </div>
             </DialogContent>
           </Dialog>
 
@@ -313,8 +361,11 @@ const MainMenu = () => {
         }
         creatorId={getUserId()}
         roomDetails={roomDetails}
-        UserDetails={userDetails}
         onSuccess={() => {
+          setRoomDetails(null);
+        }}
+        roomStatus={getRoomStatus.data}
+        onError={() => {
           setRoomDetails(null);
         }}
       />
@@ -323,10 +374,12 @@ const MainMenu = () => {
         onOpenChange={(open: boolean) =>
           setOpenDialog(open ? "joinRoom" : null)
         }
-        creatorId={getUserId()}
-        roomDetails={roomDetails}
-        UserDetails={userDetails}
-        onSuccess={() => setRoomDetails(null)}
+        creatorId={userId}
+        onSuccess={(data) => {
+          setRoomDetails(data.room);
+          setUserId((prev) => prev || data.playerStatus.playerId);
+          setOpenDialog("createRoom");
+        }}
       />
     </div>
   );

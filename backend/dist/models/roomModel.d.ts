@@ -3,7 +3,8 @@ declare const _default: mongoose.Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    players: mongoose.Types.ObjectId[];
+    players: string[];
+    roomCreator: string;
     isActiveRoom: boolean;
     roomCode: string;
     isGameStarted: boolean;
@@ -11,7 +12,8 @@ declare const _default: mongoose.Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    players: mongoose.Types.ObjectId[];
+    players: string[];
+    roomCreator: string;
     isActiveRoom: boolean;
     roomCode: string;
     isGameStarted: boolean;
@@ -21,7 +23,8 @@ declare const _default: mongoose.Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    players: mongoose.Types.ObjectId[];
+    players: string[];
+    roomCreator: string;
     isActiveRoom: boolean;
     roomCode: string;
     isGameStarted: boolean;
@@ -35,7 +38,8 @@ declare const _default: mongoose.Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    players: mongoose.Types.ObjectId[];
+    players: string[];
+    roomCreator: string;
     isActiveRoom: boolean;
     roomCode: string;
     isGameStarted: boolean;
@@ -43,7 +47,8 @@ declare const _default: mongoose.Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    players: mongoose.Types.ObjectId[];
+    players: string[];
+    roomCreator: string;
     isActiveRoom: boolean;
     roomCode: string;
     isGameStarted: boolean;
@@ -53,7 +58,8 @@ declare const _default: mongoose.Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
-    players: mongoose.Types.ObjectId[];
+    players: string[];
+    roomCreator: string;
     isActiveRoom: boolean;
     roomCode: string;
     isGameStarted: boolean;

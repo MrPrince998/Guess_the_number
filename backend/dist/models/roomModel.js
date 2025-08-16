@@ -38,8 +38,8 @@ const roomSchema = new mongoose_1.Schema({
     players: {
         type: [
             {
-                type: mongoose_1.default.Schema.Types.ObjectId,
-                ref: "User",
+                type: String,
+                required: true,
             },
         ],
         validate: [
@@ -58,6 +58,10 @@ const roomSchema = new mongoose_1.Schema({
             },
         ],
     },
+    roomCreator: {
+        type: String,
+        required: true,
+    },
     isActiveRoom: {
         type: Boolean,
         default: false,
@@ -65,7 +69,6 @@ const roomSchema = new mongoose_1.Schema({
     roomCode: {
         type: String,
         required: true,
-        unique: true,
     },
     isGameStarted: {
         type: Boolean,
@@ -74,5 +77,6 @@ const roomSchema = new mongoose_1.Schema({
 }, {
     timestamps: true,
 });
+roomSchema.index({ roomCode: 1 }, { unique: true });
 exports.default = mongoose_1.default.model("Room", roomSchema);
 //# sourceMappingURL=roomModel.js.map

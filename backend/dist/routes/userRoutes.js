@@ -7,6 +7,6 @@ const express_1 = __importDefault(require("express"));
 const userController_1 = __importDefault(require("../controller/userController"));
 const authMiddleware_1 = require("@/middleware/authMiddleware");
 const router = express_1.default.Router();
-router.get("/user/profile", authMiddleware_1.authenticateToken, userController_1.default.getMyProfile);
+router.get("/user/profile/:id", authMiddleware_1.authenticateToken, userController_1.default.getMyProfile);
 exports.default = router;
 //# sourceMappingURL=userRoutes.js.map

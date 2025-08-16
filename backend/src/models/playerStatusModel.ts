@@ -3,25 +3,26 @@ import mongoose, { Schema } from "mongoose";
 const playerStatusSchema = new Schema(
   {
     playerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: String, // ✅ CHANGED: Use String instead of Schema.Types.ObjectId
       required: true,
-    },
-    role: {
-      type: String,
-      enum: ["guest", "user"],
-      default: "guest",
-    },
-    roomCode: {
-      type: String,
-      required: true,
-    },
-    secretCode: {
-      type: Number,
     },
     isPlayerJoined: {
       type: Boolean,
       default: false,
+    },
+    
+    roomCode: {
+      type: String,
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["user", "guest"],
+      default: "user",
+    },
+    lastSeen: {
+      type: Date,
+      default: Date.now,
     },
     isReady: {
       type: Boolean,
@@ -33,35 +34,27 @@ const playerStatusSchema = new Schema(
     },
     currentGuess: {
       type: Number,
-      default: null,
     },
-    guessHistory: [
-      {
-        guess: {
-          type: Number,
-          required: true,
+    secretCode: {
+      type: Number,
+    },
+    guessHistory: {
+      type: [
+        {
+          guess: Number,
+          result: String, // "higher", "lower", "correct"
+          timestamp: {
+            type: Date,
+            default: Date.now,
+          },
         },
-        result: {
-          type: String,
-          required: true,
-        },
-        time: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Add compound index for efficient queries
-playerStatusSchema.index(
-  { playerId: 1, roomCode: 1 },
-  { unique: true, name: "player_room_unique_idx" }
-);
-
-const PlayerStatus = mongoose.model("PlayerStatus", playerStatusSchema);
-export default PlayerStatus;
+export default mongoose.model("PlayerStatus", playerStatusSchema);

@@ -8,6 +8,7 @@ import cors from "cors";
 import userRoutes from "./routes/userRoutes";
 import roomRouter from "./routes/roomRoutes";
 import authRoutes from "./routes/authRoutes";
+import { setupSwagger } from "./swagger";
 
 // Load env variables
 dotenv.config();
@@ -27,6 +28,9 @@ app.use("/api/room", roomRouter);
 
 // Auth routes
 app.use("/api", authRoutes);
+
+// Setup Swagger
+setupSwagger(app);
 
 // Connect to MongoDB
 mongoose

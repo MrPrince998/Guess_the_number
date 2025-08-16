@@ -1,0 +1,21 @@
+paths:
+  /api/user/profile/{id}:
+    get:
+      tags:
+        - User
+      summary: Get user profile
+      description: Retrieves the profile information for a specific user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The ID of the user to retrieve.
+      responses:
+        "200":
+          description: User profile retrieved successfully.
+        "404":
+          description: User not found.

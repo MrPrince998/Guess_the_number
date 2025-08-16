@@ -78,7 +78,7 @@ interface QueryOptions {
 
 // ✅ FIXED: GET Hook with clearer logic
 export const useGet = <T>(
-  key: string | string[],
+  key: string | string[] | undefined,
   url: string,
   options?: QueryOptions
 ): UseQueryResult<T, AxiosError<ApiError>> => {
@@ -167,7 +167,7 @@ export const PostHook = <TData = unknown, TVariables = ApiPayload>(
 };
 
 export const GetHook = <T>(
-  key: string | string[],
+  key: string | string[] | undefined,
   url: string,
   options?: QueryOptions
 ) => {

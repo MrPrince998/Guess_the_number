@@ -11,15 +11,26 @@ import toast from "react-hot-toast";
 import { PostHook } from "@/hook/apiCall";
 import type {
   CreateGameResponse,
-  UserDetails,
+  roomStatus,
 } from "@/pages/main-menu/MainMenu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Check, Copy, Users, X } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Users,
+  X,
+  Search,
+  Trophy,
+  Clock,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { BaseURL } from "../constant/constant";
+// import { Progress } from "@/components/ui/progress";
+import { BaseURL, UserDetails } from "../constant/constant";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export interface RoomDetails {
   id: string;
@@ -28,7 +39,6 @@ export interface RoomDetails {
   isActiveRoom: boolean;
   isGameStarted?: boolean;
   maxPlayers?: number;
-  gameMode?: string;
 }
 
 interface CreateRoomProps {
@@ -37,36 +47,51 @@ interface CreateRoomProps {
   onSuccess?: () => void;
   roomDetails?: RoomDetails | null;
   creatorId?: string | null;
-  UserDetails?: UserDetails;
+  roomStatus?: roomStatus;
+  onError?: () => void;
 }
 
-interface ExitRoomPayload {
-  roomCode: string;
-  userId: string;
-}
+interface emptyPayload {}
 
+interface GameStartResponse {
+  message: string;
+  room: RoomDetails;
+}
 const CreateRoom = ({
   open,
   onOpenChange,
   roomDetails,
   onSuccess,
-  UserDetails,
+  roomStatus,
+  onError,
 }: CreateRoomProps) => {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
-  const [playerCount, setPlayerCount] = useState(1);
+  const [countdown, setCountdown] = useState(5);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const players = roomStatus?.players || roomDetails?.players || [];
 
+  console.log("Room Details:", roomStatus);
   useEffect(() => {
     if (roomDetails?.roomCode) {
       setInviteLink(`${BaseURL}/join/${roomDetails.roomCode}`);
-      setPlayerCount(roomDetails.players?.length || 1);
     }
   }, [roomDetails]);
 
-  const deleteRoom = PostHook<CreateGameResponse, ExitRoomPayload>(
-    "post",
-    "/api/room/exit",
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showCountdown && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    } else if (countdown === 0) {
+      handleStart();
+    }
+    return () => clearTimeout(timer);
+  }, [countdown, showCountdown]);
+
+  const deleteRoom = PostHook<CreateGameResponse, emptyPayload>(
+    "delete",
+    `${BaseURL}/api/room/rooms/${roomDetails?.roomCode}/players/${UserDetails?.id}`,
     ["exit-room"]
   );
 
@@ -74,17 +99,15 @@ const CreateRoom = ({
     if (!roomDetails?.roomCode || !UserDetails?.id) {
       toast.error("Missing room or user information");
       onOpenChange(false);
+      onError?.();
       return;
     }
 
     deleteRoom.mutate(
-      {
-        roomCode: roomDetails.roomCode,
-        userId: UserDetails.id,
-      },
+      {},
       {
         onSuccess: (data) => {
-          toast.success(`Room left successfully: ${data}`);
+          toast.success(`${data.message}`);
           onOpenChange(false);
           onSuccess?.();
         },
@@ -92,6 +115,7 @@ const CreateRoom = ({
           console.error("Error exiting room:", error);
           toast.error("Failed to exit room");
           onOpenChange(false);
+          onError?.();
         },
       }
     );
@@ -107,7 +131,44 @@ const CreateRoom = ({
     }
   };
 
-  const handleCopy = async (text: string) => {
+  useEffect(() => {
+    if (roomStatus?.room?.isGameStarted) {
+      console.log("Game has started, showing countdown");
+      setShowCountdown(true);
+      setCountdown(5);
+    }
+  }, [roomStatus?.room?.isGameStarted]);
+
+  const gameStart = PostHook<GameStartResponse, emptyPayload>(
+    "patch",
+    `${BaseURL}/api/room/rooms/${roomDetails?.roomCode}/start`,
+    ["start-game"]
+  );
+  const handleStartCountdown = () => {
+    if (players.length === 2) {
+      gameStart.mutate(
+        {},
+        {
+          onSuccess: (data) => {
+            toast.success(data.message);
+            // Optionally navigate to the game room
+            // navigate(`/room/${data.room.roomCode}`);
+            // onSuccess?.();
+          },
+          onError: (error) => {
+            const errorMessage =
+              error.response?.data?.message || "Failed to start game";
+            toast.error(errorMessage);
+          },
+        }
+      );
+    } else {
+      toast.error("You need 2 players to start the game!");
+    }
+  };
+
+  console.log(roomDetails);
+  const handleCopy = async (text: string | undefined) => {
     if (!text) {
       toast.error("Nothing to copy");
       return;
@@ -124,180 +185,231 @@ const CreateRoom = ({
     }
   };
 
-  // ✅ FIXED: Better player count calculation
-  const currentPlayerCount = roomDetails?.players?.length || 1;
-  const maxPlayers = roomDetails?.maxPlayers || 2;
-  const playerPercentage = Math.min(
-    100,
-    (currentPlayerCount / maxPlayers) * 100
-  );
-
-  // ✅ FIXED: Handle case when roomDetails is null
-  if (!roomDetails) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Loading...</DialogTitle>
-            <DialogDescription>
-              Please wait while we load room details.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  // if (!roomDetails) {
+  //   return (
+  //     <Dialog open={open} onOpenChange={onOpenChange}>
+  //       <DialogContent className="sm:max-w-[400px] bg-gradient-to-b from-blue-50 to-indigo-50">
+  //         <DialogHeader>
+  //           <DialogTitle className="text-indigo-600">Loading...</DialogTitle>
+  //           <DialogDescription>
+  //             Preparing your number guessing battle...
+  //           </DialogDescription>
+  //         </DialogHeader>
+  //         <div className="flex justify-end">
+  //           <Button variant="outline" onClick={() => onOpenChange(false)}>
+  //             Close
+  //           </Button>
+  //         </div>
+  //       </DialogContent>
+  //     </Dialog>
+  //   );
+  // }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">
-                {roomDetails.gameMode || "Game Room"}
-              </DialogTitle>
-              <DialogDescription className="text-gray-600 dark:text-gray-300">
-                {roomDetails.isGameStarted
-                  ? "Game in progress"
-                  : "Waiting for players..."}
-              </DialogDescription>
-            </div>
-            <Badge variant="secondary" className="px-3 py-1">
-              <Users className="w-4 h-4 mr-1" />
-              {currentPlayerCount}/{maxPlayers}
-            </Badge>
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-6">
-          {/* Player Progress */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300">
-              <span>Players joined</span>
-              <span>
-                {currentPlayerCount}/{maxPlayers}
-              </span>
-            </div>
-            <Progress value={playerPercentage} className="h-2" />
-          </div>
-
-          {/* Room Code Section */}
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h3 className="font-medium text-gray-700 dark:text-gray-200 mb-2">
-              Share Room Code
-            </h3>
-            <div className="flex items-center gap-2">
-              <Input
-                value={roomDetails.roomCode}
-                readOnly
-                className="font-mono text-lg font-bold tracking-wider"
-              />
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => handleCopy(roomDetails.roomCode)}
-                disabled={!roomDetails.roomCode}
-              >
-                {copied ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Invite Link Section */}
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h3 className="font-medium text-gray-700 dark:text-gray-200 mb-2">
-              Or share invite link
-            </h3>
-            <div className="flex items-center gap-2">
-              <Input value={inviteLink} readOnly className="text-sm truncate" />
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => handleCopy(inviteLink)}
-                disabled={!inviteLink}
-              >
-                {copied ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Players List */}
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h3 className="font-medium text-gray-700 dark:text-gray-200 mb-3">
-              Players ({currentPlayerCount})
-            </h3>
-            <div className="space-y-3">
-              {/* ✅ FIXED: Handle string array instead of object array */}
-              {roomDetails.players.map((playerId, index) => (
-                <div
-                  key={playerId}
-                  className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback>P{index + 1}</AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium">Player {index + 1}</span>
-                  </div>
-                  {playerId === UserDetails?.id && (
-                    <Badge variant="outline">You</Badge>
-                  )}
+      <DialogContent className="sm:max-w-[500px] rounded-xl border-0 bg-gradient-to-br from-indigo-50 to-blue-100 overflow-hidden p-0">
+        {/* Header with game title */}
+        <div className="bg-indigo-600 p-6 text-white">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Search className="w-8 h-8" />
+                <div>
+                  <DialogTitle className="text-2xl font-bold tracking-tight">
+                    Number Guessing Duel
+                  </DialogTitle>
+                  <DialogDescription className="text-indigo-100">
+                    {roomStatus?.room?.isGameStarted
+                      ? "Game in progress!"
+                      : "Waiting for opponent..."}
+                  </DialogDescription>
                 </div>
-              ))}
-
-              {/* Show empty slots */}
-              {Array.from({ length: maxPlayers - currentPlayerCount }).map(
-                (_, index) => (
-                  <div
-                    key={`empty-${index}`}
-                    className="flex items-center gap-3 p-2 opacity-50"
-                  >
-                    <Avatar>
-                      <AvatarFallback className="bg-gray-200 dark:bg-gray-600">
-                        ?
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium text-gray-400">
-                      Waiting for player...
-                    </span>
-                  </div>
-                )
-              )}
+              </div>
+              <Badge
+                variant="secondary"
+                className="px-3 py-1 bg-white text-indigo-600"
+              >
+                <Users className="w-4 h-4 mr-1" />
+                {players.length || 1}/2
+              </Badge>
             </div>
-          </div>
+          </DialogHeader>
         </div>
 
-        <div className="flex justify-between gap-3 pt-4">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            className="flex-1 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
-            disabled={deleteRoom.isPending}
-          >
-            <X className="w-4 h-4 mr-2" />
-            {deleteRoom.isPending ? "Leaving..." : "Leave Room"}
-          </Button>
-          <Button
-            onClick={handleStart}
-            className="flex-1 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
-            disabled={!roomDetails.roomCode || currentPlayerCount < 2}
-          >
-            Start Game
-          </Button>
+        {/* Main content */}
+        <div className="p-6 space-y-6">
+          {showCountdown ? (
+            <motion.div
+              initial={{ scale: 0.5 }}
+              animate={{ scale: 1 }}
+              className="flex flex-col items-center justify-center py-10"
+            >
+              <div className="text-5xl font-bold text-indigo-600 mb-4">
+                {countdown}
+              </div>
+              <p className="text-lg text-indigo-800">Game starting in...</p>
+              <Sparkles className="w-10 h-10 mt-4 text-yellow-400 animate-pulse" />
+            </motion.div>
+          ) : (
+            <>
+              {/* Game info cards */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
+                  <div className="flex items-center gap-2 text-indigo-600 mb-2">
+                    <Trophy className="w-5 h-5" />
+                    <h3 className="font-medium">Prize</h3>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Victory rewards you with coins
+                  </p>
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
+                  <div className="flex items-center gap-2 text-indigo-600 mb-2">
+                    <Clock className="w-5 h-5" />
+                    <h3 className="font-medium">Rules</h3>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Outsmart your rival by cracking their secret vault code
+                    before they crack yours!
+                  </p>
+                </div>
+              </div>
+
+              {/* Room code section */}
+              <div className="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
+                <h3 className="font-medium text-indigo-700 mb-2 flex items-center gap-2">
+                  <Copy className="w-4 h-4" /> Challenge Code
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={roomDetails?.roomCode}
+                    readOnly
+                    className="font-mono text-lg font-bold tracking-wider bg-indigo-50 border-indigo-200 text-indigo-700"
+                  />
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => handleCopy(roomDetails?.roomCode)}
+                    className="border-indigo-200 hover:bg-indigo-50"
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Players section */}
+              <div className="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
+                <h3 className="font-medium text-indigo-700 mb-3 flex items-center gap-2">
+                  <Users className="w-4 h-4" /> Duelists
+                </h3>
+                <div className="space-y-3">
+                  {roomStatus?.players.map((player, index) => {
+                    console.log("Player:", player);
+                    return (
+                      <motion.div
+                        key={player.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-lg",
+                          player.id === UserDetails?.id
+                            ? "bg-indigo-50 border border-indigo-200"
+                            : "bg-gray-50"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="border-2 border-indigo-200">
+                            <AvatarFallback className="bg-indigo-100 text-indigo-600">
+                              {player.id === UserDetails?.id ? "YOU" : "OPP"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">
+                              {player.id === UserDetails?.id
+                                ? "You"
+                                : "Opponent"}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {player.id === roomStatus.room?.roomCreator
+                                ? "Creator"
+                                : "Challenger"}
+                            </div>
+                          </div>
+                        </div>
+                        {player?.isJoined ? (
+                          <Badge
+                            variant="secondary"
+                            className="bg-indigo-100 text-indigo-600"
+                          >
+                            Ready
+                          </Badge>
+                        ) : (
+                          <Badge variant={"outline"} className="text-gray-500">
+                            Not Ready
+                          </Badge>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                  {players.length < 2 && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-dashed border-gray-300 animate-pulse">
+                      <Avatar className="border-2 border-dashed border-gray-300">
+                        <AvatarFallback className="bg-transparent text-gray-400">
+                          ?
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium text-gray-500">
+                          Waiting for opponent
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Share the code above
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer with action buttons */}
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-between gap-3">
+          {!showCountdown && (
+            <>
+              <Button
+                variant="outline"
+                onClick={handleCancel}
+                className="border-red-300 hover:bg-red-50 text-red-600"
+                disabled={deleteRoom.isPending}
+              >
+                <X className="w-4 h-4 mr-2" />
+                {deleteRoom.isPending ? "Leaving..." : "Leave Duel"}
+              </Button>
+
+              {roomStatus?.room.roomCreator === UserDetails?.id && (
+                <Button
+                  onClick={handleStartCountdown}
+                  className={cn(
+                    "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700",
+                    "text-white font-bold shadow-md",
+                    "transition-all duration-300",
+                    players.length === 2 ? "animate-pulse" : ""
+                  )}
+                  disabled={players.length < 1}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Start Duel
+                </Button>
+              )}
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

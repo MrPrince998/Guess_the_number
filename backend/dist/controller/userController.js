@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const userModel_1 = __importDefault(require("@/models/userModel"));
 const getMyProfile = async (req, res) => {
     try {
-        const userId = req.userId;
+        const userId = req.params.id;
         if (!userId) {
             return res.status(400).json({ error: "Missing user ID" });
         }

@@ -36,21 +36,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const playerStatusSchema = new mongoose_1.Schema({
     playerId: {
-        type: mongoose_1.default.Schema.Types.ObjectId,
-        ref: "User",
+        type: String,
         required: true,
+    },
+    isPlayerJoined: {
+        type: Boolean,
+        default: false,
     },
     roomCode: {
         type: String,
         required: true,
     },
-    secretCode: {
-        type: Number,
-        required: false,
+    role: {
+        type: String,
+        enum: ["user", "guest"],
+        default: "user",
     },
-    isPlayerJoined: {
-        type: Boolean,
-        default: false,
+    lastSeen: {
+        type: Date,
+        default: Date.now,
     },
     isReady: {
         type: Boolean,
@@ -62,28 +66,25 @@ const playerStatusSchema = new mongoose_1.Schema({
     },
     currentGuess: {
         type: Number,
-        default: null,
     },
-    guessHistory: [
-        {
-            guess: {
-                type: Number,
-                required: true,
+    secretCode: {
+        type: Number,
+    },
+    guessHistory: {
+        type: [
+            {
+                guess: Number,
+                result: String,
+                timestamp: {
+                    type: Date,
+                    default: Date.now,
+                },
             },
-            result: {
-                type: String,
-                required: true,
-            },
-            time: {
-                type: Date,
-                default: Date.now,
-            },
-        },
-    ],
+        ],
+        default: [],
+    },
 }, {
     timestamps: true,
 });
-playerStatusSchema.index({ playerId: 1, roomCode: 1 }, { unique: true });
-const PlayerStatus = mongoose_1.default.model("PlayerStatus", playerStatusSchema);
-exports.default = PlayerStatus;
+exports.default = mongoose_1.default.model("PlayerStatus", playerStatusSchema);
 //# sourceMappingURL=playerStatusModel.js.map

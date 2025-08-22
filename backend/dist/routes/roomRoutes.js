@@ -15,7 +15,7 @@ router.patch("/rooms/:roomCode/players/:userId/ready", authMiddleware_1.authenti
 router.patch("/rooms/:roomCode/players/:userId/status", authMiddleware_1.authenticateToken, roomController_1.default.clearPlayerStatus);
 router.get("/rooms/:roomCode/players/:userId/heartbeat", authMiddleware_1.authenticateToken, roomController_1.default.heartbeat);
 router.put("/rooms/:roomCode/players/:userId/guess", authMiddleware_1.authenticateToken, roomController_1.default.playerGuess);
-router.put("/rooms/:roomCode/players/:userId/secret", authMiddleware_1.authenticateToken, roomController_1.default.setSecretCode);
+router.patch("/rooms/:roomCode/players/:userId/secret", authMiddleware_1.authenticateToken, roomController_1.default.setSecretCode);
 router.get("/rooms/:roomCode/status", authMiddleware_1.authenticateToken, roomController_1.default.getRoomStatus);
 router.get("/rooms/:roomCode/players/:userId/guesses", authMiddleware_1.authenticateToken, roomController_1.default.playersGuessHistory);
 exports.default = router;

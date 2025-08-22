@@ -9,11 +9,17 @@ import { PostHook, getErrorMessage } from "@/hook/apiCall";
 import { useState } from "react";
 import { Input } from "../ui/input";
 import toast from "react-hot-toast";
-import { Sword, Zap, Sparkles, User, UserPlus } from "lucide-react";
-import { motion } from "framer-motion";
+import {
+  Sword,
+  Sparkles,
+  User,
+  UserPlus,
+  Shield,
+  Trophy,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-// import { useNavigate } from "react-router-dom";
-import { BaseURL, UserDetails } from "../constant/constant";
+import { BaseURL, getCurrentUser } from "../constant/constant";
 
 interface JoinRoomProps {
   open: boolean;
@@ -49,10 +55,11 @@ interface JoinRoomPayload {
 }
 
 const JoinRoom = ({ open, onOpenChange, onSuccess }: JoinRoomProps) => {
-  // const navigate = useNavigate();
   const [joinCode, setJoinCode] = useState<string>("");
   const [shake, setShake] = useState(false);
   const [joinAsGuest, setJoinAsGuest] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const UserDetails = getCurrentUser();
 
   const joinRoom = PostHook<JoinRoomResponse, JoinRoomPayload>(
     "post",
@@ -64,57 +71,62 @@ const JoinRoom = ({ open, onOpenChange, onSuccess }: JoinRoomProps) => {
     e.preventDefault();
 
     if (!joinCode.trim()) {
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
+      triggerShake();
       toast.error("Please enter a room code");
       return;
     }
 
     if (joinCode.length !== 4) {
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
+      triggerShake();
       toast.error("Room code must be 4 characters");
       return;
     }
 
     const userId = joinAsGuest ? null : UserDetails?.id || null;
 
-    const requestData = {
-      roomCode: joinCode.toUpperCase(),
-      userId: userId,
-    };
-    joinRoom.mutate(requestData, {
-      onSuccess: (data) => {
-        if (data.token && data.username) {
-          // Guest user - store temporary credentials
-          localStorage.setItem("token", data.token);
-          localStorage.setItem(
-            "user",
-            JSON.stringify({
-              id: data.playerStatus.playerId,
-              username: data.username,
-              role: "guest",
-            })
-          );
-          toast.success(`Welcome ${data.username}! Joined as guest.`);
-        } else {
-          // Regular user
-          toast.success(data.message);
-        }
+    joinRoom.mutate(
+      {
+        roomCode: joinCode.toUpperCase(),
+        userId: userId,
+      },
+      {
+        onSuccess: (data) => {
+          handleJoinSuccess(data);
+        },
+        onError: (error) => {
+          handleJoinError(error);
+        },
+      }
+    );
+  };
 
-        // Navigate to the game room
-        // navigate(`/room/${data.room.roomCode}`);
-        // setOpenDialog?.("createRoom");
-        // onOpenChange(false);
-        onSuccess(data);
-      },
-      onError: (error) => {
-        const errorMessage = getErrorMessage(error);
-        toast.error(errorMessage);
-        setShake(true);
-        setTimeout(() => setShake(false), 500);
-      },
-    });
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 500);
+  };
+
+  const handleJoinSuccess = (data: JoinRoomResponse) => {
+    if (data.token && data.username) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: data.playerStatus.playerId,
+          username: data.username,
+          role: "guest",
+        })
+      );
+      toast.success(`Welcome ${data.username}! Joined as guest.`);
+    } else {
+      toast.success(data.message);
+    }
+    onSuccess(data);
+  };
+
+  const handleJoinError = (error: any) => {
+    const errorMessage = getErrorMessage(error);
+    toast.error(errorMessage);
+    triggerShake();
   };
 
   const handleCancel = () => {
@@ -127,18 +139,21 @@ const JoinRoom = ({ open, onOpenChange, onSuccess }: JoinRoomProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-xl border-0 bg-gradient-to-br from-indigo-50 to-blue-100 overflow-hidden p-0">
-        {/* Header */}
-        <div className="bg-indigo-600 p-6 text-white">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <Sword className="w-8 h-8" />
+      <DialogContent className="sm:max-w-[425px] rounded-xl border-0 bg-gradient-to-b from-indigo-50 to-blue-50 overflow-hidden p-0 shadow-xl">
+        {/* Header with game theme */}
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-6 text-white relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10 bg-[url('/pattern.svg')] bg-cover" />
+          <DialogHeader className="relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <Sword className="w-6 h-6" />
+              </div>
               <div>
                 <DialogTitle className="text-2xl font-bold tracking-tight">
-                  Join Number Duel
+                  Join Code Duel
                 </DialogTitle>
                 <p className="text-indigo-100">
-                  Challenge a friend in the guessing battle!
+                  Challenge a friend in the ultimate guessing battle!
                 </p>
               </div>
             </div>
@@ -149,17 +164,18 @@ const JoinRoom = ({ open, onOpenChange, onSuccess }: JoinRoomProps) => {
         <div className="p-6">
           <motion.form
             onSubmit={handleJoinRoom}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="space-y-6"
           >
-            {/* Input field */}
-            <div className="space-y-2">
+            {/* Input field with animation */}
+            <div className="space-y-3">
               <label
                 htmlFor="roomCode"
-                className="block text-sm font-medium text-indigo-700"
+                className="block text-sm font-medium text-indigo-700 flex items-center gap-2"
               >
-                Enter Challenge Code
+                <Shield className="w-4 h-4" />
+                Challenge Code
               </label>
               <motion.div
                 animate={{
@@ -176,73 +192,116 @@ const JoinRoom = ({ open, onOpenChange, onSuccess }: JoinRoomProps) => {
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   className={cn(
                     "font-mono text-lg font-bold tracking-wider text-center",
-                    "bg-white border-indigo-200 focus:border-indigo-400",
-                    "h-14 text-xl"
+                    "bg-white border-2 border-indigo-200 focus:border-indigo-500",
+                    "h-14 text-xl shadow-sm",
+                    shake && "border-red-300"
                   )}
                   disabled={joinRoom.isPending}
                 />
               </motion.div>
               <p className="text-xs text-gray-500">
-                Get the code from your friend who created the duel
+                Get the 4-digit code from the room creator
               </p>
             </div>
 
-            {/* ✅ FIXED: User type selection */}
+            {/* User type selection */}
             {!isAuthenticated && (
               <div className="space-y-3">
-                <p className="text-sm font-medium text-indigo-700">Join as:</p>
+                <p className="text-sm font-medium text-indigo-700 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Join as:
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     type="button"
                     variant={!joinAsGuest ? "default" : "outline"}
                     onClick={() => setJoinAsGuest(false)}
-                    className="h-12"
+                    className="h-12 gap-2"
                     disabled={joinRoom.isPending}
                   >
-                    <User className="w-4 h-4 mr-2" />
-                    Login First
+                    <User className="w-4 h-4" />
+                    Registered
                   </Button>
                   <Button
                     type="button"
                     variant={joinAsGuest ? "default" : "outline"}
                     onClick={() => setJoinAsGuest(true)}
-                    className="h-12"
+                    className="h-12 gap-2"
                     disabled={joinRoom.isPending}
                   >
-                    <UserPlus className="w-4 h-4 mr-2" />
+                    <UserPlus className="w-4 h-4" />
                     Guest
                   </Button>
                 </div>
-                {joinAsGuest && (
-                  <p className="text-xs text-gray-600 bg-yellow-50 p-2 rounded border border-yellow-200">
-                    <strong>Note:</strong> As a guest, your progress won't be
-                    saved.
-                  </p>
-                )}
+                <AnimatePresence>
+                  {joinAsGuest && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="text-xs text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
+                        <strong>Guest Note:</strong> Your progress will be
+                        temporary. Register to save your stats.
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 
-            {/* Game info */}
-            <div className="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
-              <div className="flex items-center gap-3">
-                <Zap className="w-5 h-5 text-yellow-500" />
-                <div>
-                  <h3 className="font-medium text-indigo-700">Game Rules</h3>
-                  <p className="text-sm text-gray-600">
-                    Outsmart your rival by cracking their secret vault code
-                    before they crack yours!
-                  </p>
-                </div>
-              </div>
+            {/* Expandable game rules */}
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-between"
+                onClick={() => setShowRules(!showRules)}
+              >
+                <span className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4" />
+                  How to Play
+                </span>
+                <span>{showRules ? "−" : "+"}</span>
+              </Button>
+
+              <AnimatePresence>
+                {showRules && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm space-y-2 text-sm">
+                      <p>
+                        <strong>1.</strong> Each player sets a secret 4-digit
+                        code
+                      </p>
+                      <p>
+                        <strong>2.</strong> Take turns guessing the opponent's
+                        code
+                      </p>
+                      <p>
+                        <strong>3.</strong> Receive hints (too high/too low)
+                      </p>
+                      <p>
+                        <strong>4.</strong> First to crack the code wins!
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Action buttons */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleCancel}
-                className="flex-1"
+                className="flex-1 border-red-300 hover:bg-red-50"
                 disabled={joinRoom.isPending}
               >
                 Cancel
@@ -250,9 +309,10 @@ const JoinRoom = ({ open, onOpenChange, onSuccess }: JoinRoomProps) => {
               <Button
                 type="submit"
                 className={cn(
-                  "flex-1 py-6 text-lg font-bold",
+                  "flex-1 py-3 text-base font-bold",
                   "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700",
-                  "text-white shadow-md transition-all duration-300"
+                  "text-white shadow-lg transition-all duration-300",
+                  "flex items-center justify-center gap-2"
                 )}
                 disabled={
                   joinRoom.isPending ||
@@ -264,8 +324,8 @@ const JoinRoom = ({ open, onOpenChange, onSuccess }: JoinRoomProps) => {
                   "Joining..."
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    {joinAsGuest ? "Join as Guest" : "Accept Challenge"}
+                    <Sparkles className="w-5 h-5" />
+                    {joinAsGuest ? "Play as Guest" : "Join Battle"}
                   </>
                 )}
               </Button>

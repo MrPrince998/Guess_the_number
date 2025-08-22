@@ -6,11 +6,14 @@ const playerStatusSchema = new Schema(
       type: String, // ✅ CHANGED: Use String instead of Schema.Types.ObjectId
       required: true,
     },
+    playerName: {
+      type: String,
+      required: true,
+    },
     isPlayerJoined: {
       type: Boolean,
       default: false,
     },
-    
     roomCode: {
       type: String,
       required: true,
@@ -37,19 +40,6 @@ const playerStatusSchema = new Schema(
     },
     secretCode: {
       type: Number,
-    },
-    guessHistory: {
-      type: [
-        {
-          guess: Number,
-          result: String, // "higher", "lower", "correct"
-          timestamp: {
-            type: Date,
-            default: Date.now,
-          },
-        },
-      ],
-      default: [],
     },
   },
   {

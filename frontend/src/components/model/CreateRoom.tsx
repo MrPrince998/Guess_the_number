@@ -28,7 +28,7 @@ import {
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 // import { Progress } from "@/components/ui/progress";
-import { BaseURL, UserDetails } from "../constant/constant";
+import { BaseURL, getCurrentUser } from "../constant/constant";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +72,6 @@ const CreateRoom = ({
   const [showCountdown, setShowCountdown] = useState(false);
   const players = roomStatus?.players || roomDetails?.players || [];
 
-  console.log("Room Details:", roomStatus);
   useEffect(() => {
     if (roomDetails?.roomCode) {
       setInviteLink(`${BaseURL}/join/${roomDetails.roomCode}`);
@@ -89,14 +88,16 @@ const CreateRoom = ({
     return () => clearTimeout(timer);
   }, [countdown, showCountdown]);
 
+  // console.log(UserDetails);
+  const currentUserId = getCurrentUser()?.id ?? "";
   const deleteRoom = PostHook<CreateGameResponse, emptyPayload>(
     "delete",
-    `${BaseURL}/api/room/rooms/${roomDetails?.roomCode}/players/${UserDetails?.id}`,
+    `${BaseURL}/api/room/rooms/${roomDetails?.roomCode}/players/${currentUserId}`,
     ["exit-room"]
   );
 
   const handleCancel = () => {
-    if (!roomDetails?.roomCode || !UserDetails?.id) {
+    if (!roomDetails?.roomCode || !currentUserId) {
       toast.error("Missing room or user information");
       onOpenChange(false);
       onError?.();
@@ -133,7 +134,6 @@ const CreateRoom = ({
 
   useEffect(() => {
     if (roomStatus?.room?.isGameStarted) {
-      console.log("Game has started, showing countdown");
       setShowCountdown(true);
       setCountdown(5);
     }
@@ -167,7 +167,6 @@ const CreateRoom = ({
     }
   };
 
-  console.log(roomDetails);
   const handleCopy = async (text: string | undefined) => {
     if (!text) {
       toast.error("Nothing to copy");
@@ -308,7 +307,6 @@ const CreateRoom = ({
                 </h3>
                 <div className="space-y-3">
                   {roomStatus?.players.map((player, index) => {
-                    console.log("Player:", player);
                     return (
                       <motion.div
                         key={player.id}
@@ -317,7 +315,7 @@ const CreateRoom = ({
                         transition={{ duration: 0.3, delay: index * 0.1 }}
                         className={cn(
                           "flex items-center justify-between p-3 rounded-lg",
-                          player.id === UserDetails?.id
+                          player.id === currentUserId
                             ? "bg-indigo-50 border border-indigo-200"
                             : "bg-gray-50"
                         )}
@@ -325,14 +323,12 @@ const CreateRoom = ({
                         <div className="flex items-center gap-3">
                           <Avatar className="border-2 border-indigo-200">
                             <AvatarFallback className="bg-indigo-100 text-indigo-600">
-                              {player.id === UserDetails?.id ? "YOU" : "OPP"}
+                              {player.id === currentUserId ? "YOU" : "OPP"}
                             </AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="font-medium">
-                              {player.id === UserDetails?.id
-                                ? "You"
-                                : "Opponent"}
+                              {player.id === currentUserId ? "You" : "Opponent"}
                             </div>
                             <div className="text-xs text-gray-500">
                               {player.id === roomStatus.room?.roomCreator
@@ -393,7 +389,7 @@ const CreateRoom = ({
                 {deleteRoom.isPending ? "Leaving..." : "Leave Duel"}
               </Button>
 
-              {roomStatus?.room.roomCreator === UserDetails?.id && (
+              {roomStatus?.room.roomCreator === currentUserId && (
                 <Button
                   onClick={handleStartCountdown}
                   className={cn(

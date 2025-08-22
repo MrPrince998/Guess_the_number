@@ -74,6 +74,23 @@ const roomSchema = new mongoose_1.Schema({
         type: Boolean,
         default: false,
     },
+    guessHistory: {
+        type: [
+            {
+                playerId: {
+                    type: String,
+                    ref: "PlayerStatus",
+                },
+                guess: Number,
+                result: String,
+                timestamp: {
+                    type: Date,
+                    default: Date.now,
+                },
+            },
+        ],
+        default: [],
+    },
 }, {
     timestamps: true,
 });

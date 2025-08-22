@@ -39,6 +39,10 @@ const playerStatusSchema = new mongoose_1.Schema({
         type: String,
         required: true,
     },
+    playerName: {
+        type: String,
+        required: true,
+    },
     isPlayerJoined: {
         type: Boolean,
         default: false,
@@ -69,19 +73,6 @@ const playerStatusSchema = new mongoose_1.Schema({
     },
     secretCode: {
         type: Number,
-    },
-    guessHistory: {
-        type: [
-            {
-                guess: Number,
-                result: String,
-                timestamp: {
-                    type: Date,
-                    default: Date.now,
-                },
-            },
-        ],
-        default: [],
     },
 }, {
     timestamps: true,

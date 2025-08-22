@@ -13,7 +13,6 @@ import { Types } from "mongoose"; // <-- added
 const createRoom = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { userId } = req.body;
-    console.log("Creating room for userId:", userId);
     if (!userId) {
       return res.status(400).json({ error: "User ID is required" });
     }
@@ -28,14 +27,15 @@ const createRoom = async (req: Request, res: Response): Promise<Response> => {
     });
 
     const savedRoom = await newRoom.save();
+    const userDetails = await User.findById(userId);
 
     // Create PlayerStatus with roomCode
     const playerStatus = new PlayerStatus({
       isPlayerJoined: true,
       playerId: userId,
+      playerName: userDetails?.username,
       roomCode: savedRoom.roomCode,
       role: "user",
-      isReady: true,
       lastSeen: Date.now(),
     });
 
@@ -56,7 +56,6 @@ const createRoom = async (req: Request, res: Response): Promise<Response> => {
         playerId: savedPlayerStatus.playerId,
         isPlayerJoined: savedPlayerStatus.isPlayerJoined,
         role: savedPlayerStatus.role,
-        isReady: savedPlayerStatus.isReady,
       },
     });
   } catch (error) {
@@ -71,13 +70,6 @@ const joinRoom = async (req: Request, res: Response): Promise<Response> => {
 
     let playerId = typeof userId === "string" ? userId.trim() : "";
     const isGuestLike = !playerId || playerId.startsWith("guest_");
-
-    console.log("Join room request:", {
-      roomCode,
-      incomingUserId: userId,
-      normalizedPlayerId: playerId,
-      isGuestLike,
-    });
 
     if (!roomCode) {
       return res.status(400).json({ error: "Room code is required" });
@@ -112,7 +104,6 @@ const joinRoom = async (req: Request, res: Response): Promise<Response> => {
       guestUsername = generateRandomUsername();
       guestToken = generateToken(playerId, "guest");
       role = "guest";
-      console.log("Guest identified/created:", { playerId, guestUsername });
     } else {
       // Registered user flow
       if (!Types.ObjectId.isValid(playerId)) {
@@ -124,6 +115,7 @@ const joinRoom = async (req: Request, res: Response): Promise<Response> => {
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
+      guestUsername = user.username;
     }
 
     if (room.players.includes(playerId)) {
@@ -135,12 +127,13 @@ const joinRoom = async (req: Request, res: Response): Promise<Response> => {
 
     const playerStatus = new PlayerStatus({
       playerId,
+      playerName: guestUsername,
       isPlayerJoined: true,
       roomCode,
       role,
       lastSeen: Date.now(),
       isReady: false,
-      hasTurn: false,
+      hasTurn: true,
       guessHistory: [],
     });
     const savedPlayerStatus = await playerStatus.save();
@@ -157,6 +150,7 @@ const joinRoom = async (req: Request, res: Response): Promise<Response> => {
       },
       playerStatus: {
         id: savedPlayerStatus._id,
+        playerName: savedPlayerStatus.playerName,
         playerId: savedPlayerStatus.playerId,
         isPlayerJoined: savedPlayerStatus.isPlayerJoined,
         isReady: savedPlayerStatus.isReady,
@@ -261,7 +255,6 @@ const startGameRoom = async (
 const exitRoom = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { roomCode, userId } = req.params;
-    // console.log("Exiting room:", { roomCode, userId });
     if (!roomCode || !userId) {
       return res
         .status(400)
@@ -434,9 +427,54 @@ const clearPlayerStatus = async (
   }
 };
 
+// const playerGuess = async (req: Request, res: Response): Promise<Response> => {
+//   try {
+//     const { roomCode, userId, guess } = req.body;
+
+//     if (!roomCode || !userId || guess === undefined) {
+//       return res
+//         .status(400)
+//         .json({ error: "Room code, User ID, and guess are required" });
+//     }
+
+//     const playerStatus = await PlayerStatus.findOne({
+//       playerId: userId,
+//       roomCode,
+//     });
+
+//     if (!playerStatus) {
+//       return res.status(404).json({ error: "Player status not found" });
+//     }
+
+//     // Update player's current guess and add to guess history
+//     playerStatus.currentGuess = guess;
+//     playerStatus.guessHistory.push(guess);
+//     let room = await Room.findOne({ roomCode });
+
+//     // In maintanence
+//     let playerTurn = room?.players.indexOf(userId);
+
+//     const updatedPlayerStatus = await playerStatus.save();
+
+//     return res.status(200).json({
+//       message: "Guess submitted successfully",
+//       playerStatus: {
+//         id: updatedPlayerStatus._id,
+//         playerId: updatedPlayerStatus.playerId,
+//         currentGuess: updatedPlayerStatus.currentGuess,
+//         guessHistory: updatedPlayerStatus.guessHistory,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error submitting guess:", error);
+//     return res.status(500).json({ error: "Internal server error" });
+//   }
+// };
+
 const playerGuess = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { roomCode, userId, guess } = req.body;
+    const { roomCode, userId } = req.params;
+    const { guess } = req.body;
 
     if (!roomCode || !userId || guess === undefined) {
       return res
@@ -444,28 +482,90 @@ const playerGuess = async (req: Request, res: Response): Promise<Response> => {
         .json({ error: "Room code, User ID, and guess are required" });
     }
 
+    const room = await Room.findOne({ roomCode });
+    if (!room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
     const playerStatus = await PlayerStatus.findOne({
       playerId: userId,
       roomCode,
     });
-
     if (!playerStatus) {
       return res.status(404).json({ error: "Player status not found" });
     }
 
-    // Update player's current guess and add to guess history
+    if (!playerStatus.hasTurn) {
+      return res.status(403).json({ error: "It's not your turn" });
+    }
+
+    // Find opponent to compare secret Code
+    const opponent = await PlayerStatus.findOne({
+      roomCode,
+      playerId: { $ne: userId },
+    });
+
+    let correctPositions = 0;
+    let misplacedPositions = 0;
+    if (opponent?.secretCode !== undefined && opponent?.secretCode !== null) {
+      let myGuess: (string | null)[] = guess.toString().split("");
+      let opponentSecretCode: (string | null)[] = opponent.secretCode
+        .toString()
+        .split("");
+
+      let opponentCopy = [...opponentSecretCode];
+
+      // Count correct positions
+      for (let i = 0; i < myGuess.length; i++) {
+        if (myGuess[i] === opponentSecretCode[i]) {
+          correctPositions++;
+          opponentCopy[i] = null;
+          myGuess[i] = null;
+        }
+      }
+
+      // Count misplaced positions
+      for (let i = 0; i < myGuess.length; i++) {
+        if (myGuess[i] === null) continue;
+
+        let index = opponentCopy.indexOf(myGuess[i]);
+        if (index !== -1) {
+          misplacedPositions++;
+          opponentCopy[index] = null;
+        }
+      }
+    }
+
+    // playerStatus.guessHistory.push(guess);
+    room.guessHistory.unshift({
+      playerId: String(userId),
+      guess: guess,
+      result: `${correctPositions} positions correct, ${misplacedPositions} misplaced`,
+    });
+    await room.save();
+
     playerStatus.currentGuess = guess;
-    playerStatus.guessHistory.push(guess);
-    const updatedPlayerStatus = await playerStatus.save();
+    await playerStatus.save();
+
+    const currentPlayerIndex = room.players.indexOf(userId);
+    const nextPlayerIndex = (currentPlayerIndex + 1) % room.players.length;
+    const nextPlayerId = room.players[nextPlayerIndex];
+
+    await PlayerStatus.updateMany({ roomCode }, { hasTurn: false });
+    await PlayerStatus.findOneAndUpdate(
+      { playerId: nextPlayerId, roomCode },
+      { hasTurn: true }
+    );
 
     return res.status(200).json({
-      message: "Guess submitted successfully",
+      message: `${correctPositions} positions correct, ${misplacedPositions} misplaced`,
       playerStatus: {
-        id: updatedPlayerStatus._id,
-        playerId: updatedPlayerStatus.playerId,
-        currentGuess: updatedPlayerStatus.currentGuess,
-        guessHistory: updatedPlayerStatus.guessHistory,
+        id: playerStatus._id,
+        playerId: playerStatus.playerId,
+        currentGuess: playerStatus.currentGuess,
+        // guessHistory: playerStatus.guessHistory,
       },
+      nextTurn: nextPlayerId,
     });
   } catch (error) {
     console.error("Error submitting guess:", error);
@@ -497,7 +597,6 @@ const playersGuessHistory = async (
 
     return res.status(200).json({
       message: "Player guess history retrieved successfully",
-      guessHistory: playerStatus.guessHistory,
     });
   } catch (error) {
     console.error("Error retrieving player guess history:", error);
@@ -561,14 +660,23 @@ const getRoomStatus = async (
         isActiveRoom: room.isActiveRoom,
         isGameStarted: room.isGameStarted,
         playersCount: room.players.length,
+        guessHistory: room.guessHistory.map((g) => ({
+          playerId: g.playerId,
+          guess: g.guess,
+          result: g.result,
+          timestamp: g.timestamp,
+        })),
       },
       players: playersStatus.map((status) => ({
         id: status.playerId,
+        playerName: status.playerName,
         isReady: status.isReady,
         hasSecretCode: !!status.secretCode,
         isJoined: status.isPlayerJoined,
         role: status.role || "user",
         lastSeen: status.lastSeen,
+        hasTurn: status.hasTurn,
+        currentGuess: status.currentGuess,
       })),
       canStartGame:
         room.players.length >= 2 &&
@@ -587,7 +695,8 @@ const setSecretCode = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const { roomCode, userId, secretCode } = req.body;
+    const { roomCode, userId } = req.params;
+    const { secretCode } = req.body;
 
     if (!roomCode || !userId || !secretCode) {
       return res.status(400).json({
@@ -613,8 +722,8 @@ const setSecretCode = async (
 
     // Update secret code
     playerStatus.secretCode = parseInt(secretCode);
+    playerStatus.isReady = true;
     const updatedPlayerStatus = await playerStatus.save();
-
     return res.status(200).json({
       message: "Secret code set successfully",
       playerStatus: {

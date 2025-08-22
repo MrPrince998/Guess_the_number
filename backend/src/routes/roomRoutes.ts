@@ -38,7 +38,7 @@ router.put(
   authenticateToken,
   roomController.playerGuess
 ); // submit guess
-router.put(
+router.patch(
   "/rooms/:roomCode/players/:userId/secret",
   authenticateToken,
   roomController.setSecretCode

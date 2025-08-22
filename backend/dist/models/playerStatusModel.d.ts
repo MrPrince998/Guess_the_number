@@ -5,24 +5,12 @@ declare const _default: mongoose.Model<{
 } & {
     roomCode: string;
     playerId: string;
+    playerName: string;
     isPlayerJoined: boolean;
     role: "user" | "guest";
     lastSeen: NativeDate;
     isReady: boolean;
     hasTurn: boolean;
-    guessHistory: mongoose.Types.DocumentArray<{
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }, mongoose.Types.Subdocument<mongoose.mongo.BSON.ObjectId, any, {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }> & {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }>;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
 }, {}, {}, {}, mongoose.Document<unknown, {}, {
@@ -31,24 +19,12 @@ declare const _default: mongoose.Model<{
 } & {
     roomCode: string;
     playerId: string;
+    playerName: string;
     isPlayerJoined: boolean;
     role: "user" | "guest";
     lastSeen: NativeDate;
     isReady: boolean;
     hasTurn: boolean;
-    guessHistory: mongoose.Types.DocumentArray<{
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }, mongoose.Types.Subdocument<mongoose.mongo.BSON.ObjectId, any, {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }> & {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }>;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
 }, {}, {
@@ -59,24 +35,12 @@ declare const _default: mongoose.Model<{
 } & {
     roomCode: string;
     playerId: string;
+    playerName: string;
     isPlayerJoined: boolean;
     role: "user" | "guest";
     lastSeen: NativeDate;
     isReady: boolean;
     hasTurn: boolean;
-    guessHistory: mongoose.Types.DocumentArray<{
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }, mongoose.Types.Subdocument<mongoose.mongo.BSON.ObjectId, any, {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }> & {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }>;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
 } & {
@@ -91,24 +55,12 @@ declare const _default: mongoose.Model<{
 } & {
     roomCode: string;
     playerId: string;
+    playerName: string;
     isPlayerJoined: boolean;
     role: "user" | "guest";
     lastSeen: NativeDate;
     isReady: boolean;
     hasTurn: boolean;
-    guessHistory: mongoose.Types.DocumentArray<{
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }, mongoose.Types.Subdocument<mongoose.mongo.BSON.ObjectId, any, {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }> & {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }>;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
 }, mongoose.Document<unknown, {}, mongoose.FlatRecord<{
@@ -117,24 +69,12 @@ declare const _default: mongoose.Model<{
 } & {
     roomCode: string;
     playerId: string;
+    playerName: string;
     isPlayerJoined: boolean;
     role: "user" | "guest";
     lastSeen: NativeDate;
     isReady: boolean;
     hasTurn: boolean;
-    guessHistory: mongoose.Types.DocumentArray<{
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }, mongoose.Types.Subdocument<mongoose.mongo.BSON.ObjectId, any, {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }> & {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }>;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
 }>, {}, mongoose.ResolveSchemaOptions<{
@@ -145,24 +85,12 @@ declare const _default: mongoose.Model<{
 } & {
     roomCode: string;
     playerId: string;
+    playerName: string;
     isPlayerJoined: boolean;
     role: "user" | "guest";
     lastSeen: NativeDate;
     isReady: boolean;
     hasTurn: boolean;
-    guessHistory: mongoose.Types.DocumentArray<{
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }, mongoose.Types.Subdocument<mongoose.mongo.BSON.ObjectId, any, {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }> & {
-        timestamp: NativeDate;
-        guess?: number | null | undefined;
-        result?: string | null | undefined;
-    }>;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
 }> & {

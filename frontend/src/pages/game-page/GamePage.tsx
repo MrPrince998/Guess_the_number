@@ -64,7 +64,7 @@ const GamePage = () => {
     }
   }, [getRoomStatus]);
 
-  const playerHearbeat = GetHook<HeartBeatResponse>(
+  GetHook<HeartBeatResponse>(
     ["heartbeat", roomStatus?.room?.roomCode, currentUserId],
     roomStatus?.room?.roomCode && currentUserId
       ? `${BaseURL}/api/room/rooms/${gameId}/players/${currentUserId}/heartbeat`

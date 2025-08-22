@@ -9,14 +9,7 @@ import { PostHook, getErrorMessage } from "@/hook/apiCall";
 import { useState } from "react";
 import { Input } from "../ui/input";
 import toast from "react-hot-toast";
-import {
-  Sword,
-  Sparkles,
-  User,
-  UserPlus,
-  Shield,
-  Trophy,
-} from "lucide-react";
+import { Sword, Sparkles, User, UserPlus, Shield, Trophy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { BaseURL, getCurrentUser } from "../constant/constant";
@@ -142,7 +135,7 @@ const JoinRoom = ({ open, onOpenChange, onSuccess }: JoinRoomProps) => {
       <DialogContent className="sm:max-w-[425px] rounded-xl border-0 bg-gradient-to-b from-indigo-50 to-blue-50 overflow-hidden p-0 shadow-xl">
         {/* Header with game theme */}
         <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-6 text-white relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10 bg-[url('/pattern.svg')] bg-cover" />
+          <div className="absolute inset-0 opacity-10 bg-cover" />
           <DialogHeader className="relative z-10">
             <div className="flex items-center gap-4">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -172,7 +165,7 @@ const JoinRoom = ({ open, onOpenChange, onSuccess }: JoinRoomProps) => {
             <div className="space-y-3">
               <label
                 htmlFor="roomCode"
-                className="block text-sm font-medium text-indigo-700 flex items-center gap-2"
+                className="text-sm font-medium text-indigo-700 flex items-center gap-2"
               >
                 <Shield className="w-4 h-4" />
                 Challenge Code

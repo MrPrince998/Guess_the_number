@@ -122,7 +122,7 @@ const MainMenu = () => {
   console.log(userId);
   const guestPlayer = userId.startsWith("guest_");
 
-  const { data: userDetails, error: userError } = GetHook<UserDetails>(
+  const { error: userError } = GetHook<UserDetails>(
     ["userProfile", userId],
     `/api/user/profile/${userId}`,
     {
@@ -146,7 +146,7 @@ const MainMenu = () => {
     }
   );
 
-  const playerHearbeat = GetHook<HeartBeatResponse>(
+  GetHook<HeartBeatResponse>(
     ["heartbeat", roomCode, userId],
     roomCode && userId
       ? `${BaseURL}/api/room/rooms/${roomCode}/players/${userId}/heartbeat`
@@ -242,8 +242,8 @@ const MainMenu = () => {
       style={{ backgroundImage: `url(${titleBackground})` }}
     >
       {/* Decorative elements */}
-      <div className="absolute inset-0 opacity-10 bg-[url('/pattern.svg')] bg-cover" />
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 to-yellow-600" />
+      {/* <div className="absolute inset-0 opacity-10 bg-[url('/pattern.svg')] bg-cover" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 to-yellow-600" /> */}
 
       {/* Header */}
       <motion.div

@@ -67,16 +67,9 @@ const CreateRoom = ({
 }: CreateRoomProps) => {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const [inviteLink, setInviteLink] = useState("");
   const [countdown, setCountdown] = useState(5);
   const [showCountdown, setShowCountdown] = useState(false);
   const players = roomStatus?.players || roomDetails?.players || [];
-
-  useEffect(() => {
-    if (roomDetails?.roomCode) {
-      setInviteLink(`${BaseURL}/join/${roomDetails.roomCode}`);
-    }
-  }, [roomDetails]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;

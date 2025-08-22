@@ -1,8 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import "./App.css";
-import TitleScreen from "@/pages/title-screen/TitleScreen";
-import MainMenu from "./pages/main-menu/MainMenu";
-import GamePage from "./pages/game-page/GamePage";
+import { GamePage, MainMenu, TitleScreen } from "./routes/lazyRoute";
 
 function App() {
   return (

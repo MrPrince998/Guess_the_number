@@ -41,6 +41,9 @@ const playerStatusSchema = new Schema(
     secretCode: {
       type: Number,
     },
+    isWinner: {
+      type: Boolean,
+    },
   },
   {
     timestamps: true,

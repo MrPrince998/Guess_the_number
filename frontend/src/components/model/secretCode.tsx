@@ -55,6 +55,7 @@ const SecretCode = ({
       { secretCode },
       {
         onSuccess: (data) => {
+          localStorage.setItem("mySecretCode", secretCode);
           toast.success(data.message);
           setOpenDialog(false);
         },

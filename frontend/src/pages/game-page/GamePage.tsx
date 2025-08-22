@@ -1,4 +1,8 @@
-import { BaseURL, getCurrentUser } from "@/components/constant/constant";
+import {
+  BaseURL,
+  getCurrentUser,
+  getMySecretCode,
+} from "@/components/constant/constant";
 import SecretCode from "@/components/model/secretCode";
 import { GetHook, PostHook } from "@/hook/apiCall";
 import { useEffect, useState } from "react";
@@ -11,7 +15,8 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
-import vaultImage from "@/assets/Lucid_Origin_Design_a_sleek_and_minimalistic_logo_of_a_vault_f_3.jpg";
+import vaultImage from "@/assets/Lucid_Origin_Design_a_detailed_png_image_of_a_vault_with_a_met_0.jpg";
+import RestartModel from "@/components/model/RestartModel";
 
 interface playerStatus {
   id: string;
@@ -97,7 +102,8 @@ const GamePage = () => {
       { guess: guess },
       {
         onSuccess: (data) => {
-          toast.success(data.message);
+          console.log(data);
+          getRoomStatus.refetch();
           setAttempts(attempts + 1);
         },
         onError: (error) => {
@@ -109,17 +115,16 @@ const GamePage = () => {
     setGuess("");
   };
 
-  console.log(roomStatus);
-
   const currentPlayer = roomStatus?.players.find((p) => p.id === currentUserId);
   const opponent = roomStatus?.players.find((p) => p.id !== currentUserId);
-  console.log(opponent);
-  console.log(currentPlayer?.playerName);
 
   let playerAllGuessHistory = roomStatus?.room?.guessHistory?.sort(
     (a: any, b: any) => b.timestamp - a.timestamp
   );
 
+  const mySecretCode = getMySecretCode();
+
+  // const gameOver = roomStatus?.room.guessHistory.
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-blue-50 p-4">
       {!isReady && (
@@ -226,14 +231,18 @@ const GamePage = () => {
               </div>
             ) : (
               <div className="text-center space-y-6">
-                <div className="p-6 bg-indigo-100 rounded-full w-32 h-32 flex items-center justify-center mx-auto">
-                  <span
-                    className="text-3xl font-bold bg-cover bg-center"
-                    style={{ backgroundImage: `url(${vaultImage})` }}
-                  >
-                    {/* <img src={vaultImage} /> */}
-                  </span>
-                </div>
+                <div
+                  className="w-32 h-32 rounded-full bg-cover bg-center mx-auto"
+                  style={{
+                    backgroundImage: `url(${vaultImage})`,
+                    backgroundSize: "contain",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
+                  }}
+                />
+                <h1 className="font-bold text-2xl mb-0">
+                  Your Code - {mySecretCode || "N/A"}
+                </h1>
                 <div>
                   <h3 className="text-lg font-semibold text-indigo-800">
                     Guess the secret number
@@ -294,16 +303,16 @@ const GamePage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-6 bg-white rounded-xl shadow-md p-6 border border-indigo-100"
+            className="mt-6 bg-white rounded-xl shadow-md p-6 border border-indigo-100 overflow-hidden"
           >
             <h2 className="text-lg font-semibold text-indigo-800 mb-4">
               Game Log
             </h2>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-2 bg-indigo-50 rounded">
+            <div className="space-y-2 max-h-50 overflow-y-scroll">
+              {/* <div className="flex items-center justify-between p-2 bg-indigo-50 rounded">
                 <span className="text-indigo-700">Game started!</span>
-                <span className="text-xs text-indigo-500">Just now</span>
-              </div>
+                <span className="text-xs text-indigo-500">Date</span>
+              </div> */}
               {playerAllGuessHistory?.map((entry, index) => (
                 <div
                   key={index}
@@ -317,7 +326,9 @@ const GamePage = () => {
                   </span>
                   <span className="text-xs text-indigo-500">
                     {entry.result} -{" "}
-                    {new Date(entry.timestamp).toLocaleTimeString()}
+                    <span className="text-green-500">
+                      {new Date(entry.timestamp).toLocaleTimeString()}
+                    </span>
                   </span>
                 </div>
               ))}
@@ -325,6 +336,9 @@ const GamePage = () => {
           </motion.div>
         )}
       </div>
+      {roomStatus?.room.winnerPlayerId && (
+        <RestartModel roomStatus={roomStatus} currentUserId={currentUserId} />
+      )}
     </div>
   );
 };

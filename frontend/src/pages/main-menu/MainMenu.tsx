@@ -56,6 +56,7 @@ export interface RoomDetails {
   isActiveRoom: boolean;
   isGameStarted?: boolean;
   playersCount?: number;
+  winnerPlayerId?: string;
   roomCreator?: string;
   guessHistory?: {
     playerId: string;
@@ -84,6 +85,7 @@ export interface RoomPlayer {
   hasSecretCode: boolean;
   isJoined: boolean;
   role: string;
+  isWinner?: boolean;
 }
 
 export interface roomStatus {

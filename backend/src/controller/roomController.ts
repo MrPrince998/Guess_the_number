@@ -536,6 +536,12 @@ const playerGuess = async (req: Request, res: Response): Promise<Response> => {
       }
     }
 
+    if (correctPositions === 4) {
+      playerStatus.isWinner = true;
+      room.winnerId = userId;
+      room.isGameStarted = false;
+    }
+
     // playerStatus.guessHistory.push(guess);
     room.guessHistory.unshift({
       playerId: String(userId),
@@ -648,6 +654,7 @@ const getRoomStatus = async (
     // If room becomes empty, delete the entire room
     const remainingPlayers = await PlayerStatus.find({ roomCode });
     if (remainingPlayers.length === 0) {
+      room.isGameStarted = false;
       await PlayerStatus.deleteMany({ roomCode });
       await Room.deleteOne({ _id: room._id });
     }
@@ -656,9 +663,10 @@ const getRoomStatus = async (
       room: {
         id: room._id,
         roomCode: room.roomCode,
+        winnerPlayerId: room.winnerId,
         roomCreator: room.roomCreator,
-        isActiveRoom: room.isActiveRoom,
         isGameStarted: room.isGameStarted,
+        isActiveRoom: room.isActiveRoom,
         playersCount: room.players.length,
         guessHistory: room.guessHistory.map((g) => ({
           playerId: g.playerId,
@@ -670,6 +678,7 @@ const getRoomStatus = async (
       players: playersStatus.map((status) => ({
         id: status.playerId,
         playerName: status.playerName,
+        isWinner: status.isWinner || false,
         isReady: status.isReady,
         hasSecretCode: !!status.secretCode,
         isJoined: status.isPlayerJoined,

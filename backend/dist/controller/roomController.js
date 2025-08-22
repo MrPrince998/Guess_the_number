@@ -380,6 +380,11 @@ const playerGuess = async (req, res) => {
                 }
             }
         }
+        if (correctPositions === 4) {
+            playerStatus.isWinner = true;
+            room.winnerId = userId;
+            room.isGameStarted = false;
+        }
         room.guessHistory.unshift({
             playerId: String(userId),
             guess: guess,
@@ -462,6 +467,7 @@ const getRoomStatus = async (req, res) => {
         }
         const remainingPlayers = await playerStatusModel_1.default.find({ roomCode });
         if (remainingPlayers.length === 0) {
+            room.isGameStarted = false;
             await playerStatusModel_1.default.deleteMany({ roomCode });
             await roomModel_1.default.deleteOne({ _id: room._id });
         }
@@ -469,9 +475,10 @@ const getRoomStatus = async (req, res) => {
             room: {
                 id: room._id,
                 roomCode: room.roomCode,
+                winnerPlayerId: room.winnerId,
                 roomCreator: room.roomCreator,
-                isActiveRoom: room.isActiveRoom,
                 isGameStarted: room.isGameStarted,
+                isActiveRoom: room.isActiveRoom,
                 playersCount: room.players.length,
                 guessHistory: room.guessHistory.map((g) => ({
                     playerId: g.playerId,
@@ -483,6 +490,7 @@ const getRoomStatus = async (req, res) => {
             players: playersStatus.map((status) => ({
                 id: status.playerId,
                 playerName: status.playerName,
+                isWinner: status.isWinner || false,
                 isReady: status.isReady,
                 hasSecretCode: !!status.secretCode,
                 isJoined: status.isPlayerJoined,

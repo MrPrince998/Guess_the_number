@@ -30,6 +30,9 @@ const roomSchema = new Schema(
       type: String,
       required: true,
     },
+    winnerId: {
+      type: String,
+    },
     isActiveRoom: {
       type: Boolean,
       default: false,

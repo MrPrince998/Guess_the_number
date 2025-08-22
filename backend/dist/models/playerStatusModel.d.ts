@@ -13,6 +13,7 @@ declare const _default: mongoose.Model<{
     hasTurn: boolean;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
+    isWinner?: boolean | null | undefined;
 }, {}, {}, {}, mongoose.Document<unknown, {}, {
     createdAt: NativeDate;
     updatedAt: NativeDate;
@@ -27,6 +28,7 @@ declare const _default: mongoose.Model<{
     hasTurn: boolean;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
+    isWinner?: boolean | null | undefined;
 }, {}, {
     timestamps: true;
 }> & {
@@ -43,6 +45,7 @@ declare const _default: mongoose.Model<{
     hasTurn: boolean;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
+    isWinner?: boolean | null | undefined;
 } & {
     _id: mongoose.Types.ObjectId;
 } & {
@@ -63,6 +66,7 @@ declare const _default: mongoose.Model<{
     hasTurn: boolean;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
+    isWinner?: boolean | null | undefined;
 }, mongoose.Document<unknown, {}, mongoose.FlatRecord<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
@@ -77,6 +81,7 @@ declare const _default: mongoose.Model<{
     hasTurn: boolean;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
+    isWinner?: boolean | null | undefined;
 }>, {}, mongoose.ResolveSchemaOptions<{
     timestamps: true;
 }>> & mongoose.FlatRecord<{
@@ -93,6 +98,7 @@ declare const _default: mongoose.Model<{
     hasTurn: boolean;
     currentGuess?: number | null | undefined;
     secretCode?: number | null | undefined;
+    isWinner?: boolean | null | undefined;
 }> & {
     _id: mongoose.Types.ObjectId;
 } & {

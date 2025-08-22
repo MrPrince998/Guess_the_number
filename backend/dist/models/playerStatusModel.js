@@ -74,6 +74,9 @@ const playerStatusSchema = new mongoose_1.Schema({
     secretCode: {
         type: Number,
     },
+    isWinner: {
+        type: Boolean,
+    },
 }, {
     timestamps: true,
 });

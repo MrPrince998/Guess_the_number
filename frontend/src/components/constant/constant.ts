@@ -7,3 +7,12 @@ export const getCurrentUser = () => {
     return null;
   }
 };
+
+export const getMySecretCode = () => {
+  try {
+    const code = localStorage.getItem("mySecretCode");
+    return code ? code : null;
+  } catch {
+    return null;
+  }
+}

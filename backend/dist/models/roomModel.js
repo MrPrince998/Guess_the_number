@@ -62,6 +62,9 @@ const roomSchema = new mongoose_1.Schema({
         type: String,
         required: true,
     },
+    winnerId: {
+        type: String,
+    },
     isActiveRoom: {
         type: Boolean,
         default: false,

@@ -1,13 +1,15 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import Games from "./screens/Games";
 import MainScreen from "./screens/MainScreen";
 import Profile from "./screens/Profile";
-import Stats from "./screens/Stats";
+import StatsScreen from "./screens/Stats";
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -15,10 +17,8 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: "#1f2937",
           borderTopColor: "#1f2937",
-          height: 65,
-          paddingBottom: 8,
-          position: "absolute",
-          bottom: 0,
+          height: 65 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
         },
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -53,7 +53,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Stats"
-        component={Stats}
+        component={StatsScreen}
         options={{ headerShown: false }}
       />
       <Tab.Screen

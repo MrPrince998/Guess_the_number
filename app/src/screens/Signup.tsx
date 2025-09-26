@@ -131,7 +131,6 @@ const Signup = () => {
       return;
     }
 
-    console.log("Form Data:", data);
     const { error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -140,7 +139,6 @@ const Signup = () => {
       },
     });
     if (error) {
-      console.log("Error signing up:", error.message);
       alert("Error signing up: " + error.message);
       return;
     } else {

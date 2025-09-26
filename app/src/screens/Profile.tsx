@@ -13,23 +13,23 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useAuth } from "../providers/auth-providers";
 import { NavigationProp } from "../types/navigateProps.types";
+import { ProgressItemProps } from "../types/types";
 
 const { width } = Dimensions.get("window");
 
-type ProgressItemProps = {
-  label: string;
-  value: number;
-  color: string;
-  displayValue: string;
-};
-
 const Profile = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { logout, handleDeleteAccount, user } = useAuth();
+  const {
+    logout,
+    handleDeleteAccount,
+    user,
+    levelData,
+    isLoggedIn,
+    achievements,
+  } = useAuth();
 
   // Multiple animations for better effects
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -85,28 +85,28 @@ const Profile = () => {
 
   const statsData = [
     {
+      icon: "shield",
+      value: `${user?.level || 0}`,
+      label: "Level",
+      gradient: ["#4ECDC4", "#44A08D"] as const,
+    },
+    {
       icon: "game-controller",
-      value: "147",
+      value: `${user?.game_played || 0}`,
       label: "Games Played",
       gradient: ["#667eea", "#764ba2"] as const,
     },
     {
       icon: "trophy",
-      value: "32",
+      value: `${user?.games_won || 0}`,
       label: "Wins",
       gradient: ["#FFD700", "#FFA500"] as const,
     },
     {
       icon: "swap-horizontal",
-      value: "15",
+      value: `${user?.games_lost || 0}`,
       label: "Losses",
       gradient: ["#FF6B6B", "#EE5A52"] as const,
-    },
-    {
-      icon: "trending-up",
-      value: "5",
-      label: "Streak",
-      gradient: ["#4ECDC4", "#44A08D"] as const,
     },
   ];
 
@@ -171,15 +171,34 @@ const Profile = () => {
     },
   ];
 
-  const achievements = [
-    { name: "First Win", unlocked: true, icon: "trophy" },
-    { name: "5 Game Streak", unlocked: true, icon: "flash" },
-    { name: "Quick Thinker", unlocked: false, icon: "speedometer" },
-    { name: "Master Player", unlocked: false, icon: "star" },
+  const guestUserMenuItems: Array<{
+    icon: string;
+    title: string;
+    subtitle: string;
+    onPress: () => void;
+    color: string;
+    gradient: readonly [string, string];
+    isDestructive?: boolean;
+  }> = [
+    {
+      icon: "log-in",
+      title: "Login / Signup",
+      subtitle: "Access your account or create a new one",
+      onPress: () => navigation.navigate("Login"),
+      color: "#4ECDC4",
+      gradient: ["#4ECDC4", "#44A08D"] as const,
+    },
   ];
 
+  // const achievements = [
+  //   { name: "First Win", unlocked: true, icon: "trophy" },
+  //   { name: "5 Game Streak", unlocked: true, icon: "flash" },
+  //   { name: "Quick Thinker", unlocked: false, icon: "speedometer" },
+  //   { name: "Master Player", unlocked: false, icon: "star" },
+  // ];
+
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <Animated.View
         style={[
@@ -232,7 +251,16 @@ const Profile = () => {
 
           <Text style={styles.username}>{user?.username || "guest"}</Text>
           <Text style={styles.email}>{user?.email || "user@example.com"}</Text>
-          <Text style={styles.memberSince}>Member since Jan 2024</Text>
+          <Text style={styles.memberSince}>
+            Member since{" "}
+            {user?.created_at
+              ? new Date(user.created_at).toLocaleString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })
+              : "N/A"}
+          </Text>
         </Animated.View>
 
         {/* Stats Grid */}
@@ -270,23 +298,54 @@ const Profile = () => {
           ]}
         >
           <ProgressItem
+            label="Level Progress"
+            value={
+              (levelData?.find((l) => l.level === user?.level)?.required_xp
+                ? ((user?.experiences ?? 0) /
+                    levelData.find((l) => l.level === user?.level)!
+                      .required_xp) *
+                  100
+                : 0) || 0
+            }
+            color="#FF6B6B"
+            displayValue={`${
+              ((user?.experiences || 0) /
+                (levelData?.find((l) => l.level === user?.level)?.required_xp ??
+                  levelData?.[0]?.required_xp ??
+                  1)) *
+              100
+            }%`}
+          />
+          <ProgressItem
             label="Win Rate"
-            value={68}
+            value={
+              user?.game_played && user?.games_won
+                ? Math.round((user.games_won / user.game_played) * 100)
+                : 0
+            }
             color="#4ECDC4"
-            displayValue="68%"
+            displayValue={`${
+              user?.games_won && user?.game_played
+                ? Math.round((user.games_won / user.game_played) * 100)
+                : 0
+            }%`}
           />
           <ProgressItem
             label="Experience Points"
-            value={75}
+            value={user?.experiences ? (user.experiences / 2000) * 100 : 0}
             color="#FFD93D"
-            displayValue="1500/2000 XP"
+            displayValue={`${user?.experiences || 0}/${
+              // find the level object that matches the user level
+              levelData?.find((l) => l.level === user?.level)?.required_xp ||
+              levelData?.[0]?.required_xp
+            } XP`}
           />
-          <ProgressItem
-            label="Game Completion"
-            value={45}
-            color="#FF6B6B"
-            displayValue="45%"
-          />
+          {/* <ProgressItem
+            label="coin"
+            value={user?.coin ? (user.coin / 2000) * 100 : 0}
+            color="#6BCF7F"
+            displayValue={`${user?.coin || 0}`}
+          /> */}
         </Animated.View>
 
         {/* Achievements */}
@@ -300,19 +359,30 @@ const Profile = () => {
                 <View
                   style={[
                     styles.achievementIcon,
-                    !achievement.unlocked && styles.achievementLocked,
+                    !user?.achievements?.find(
+                      (achiv) =>
+                        achiv.achievement_id === achievement.id &&
+                        achiv.unlocked_at
+                    ) && styles.achievementLocked,
                   ]}
                 >
-                  <Ionicons
-                    name={achievement.icon as any}
-                    size={20}
-                    color={achievement.unlocked ? "#FFD700" : "#666"}
+                  <Image
+                    source={{ uri: achievement.icon_url }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: "50%",
+                    }}
                   />
                 </View>
                 <Text
                   style={[
                     styles.achievementText,
-                    !achievement.unlocked && styles.achievementTextLocked,
+                    !user?.achievements?.find(
+                      (achiv) =>
+                        achiv.achievement_id === achievement.id &&
+                        achiv.unlocked_at
+                    ) && styles.achievementTextLocked,
                   ]}
                 >
                   {achievement.name}
@@ -330,48 +400,86 @@ const Profile = () => {
           }}
         >
           <Text style={styles.sectionTitle}>Account Settings</Text>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              onPress={item.onPress}
-              style={[
-                styles.menuItem,
-                item.isDestructive && styles.destructiveItem,
-              ]}
-            >
-              <LinearGradient
-                colors={item.gradient}
-                style={styles.menuIconContainer}
-              >
-                <Ionicons name={item.icon as any} size={20} color="#fff" />
-              </LinearGradient>
-
-              <View style={styles.menuText}>
-                <Text
+          {isLoggedIn
+            ? menuItems.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={item.onPress}
                   style={[
-                    styles.menuTitle,
-                    { color: item.isDestructive ? "#FF6B6B" : "#fff" },
+                    styles.menuItem,
+                    item.isDestructive && styles.destructiveItem,
                   ]}
+                  disabled={item.title === "Delete Account" && !isLoggedIn}
                 >
-                  {item.title}
-                </Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-              </View>
+                  <LinearGradient
+                    colors={item.gradient}
+                    style={styles.menuIconContainer}
+                  >
+                    <Ionicons name={item.icon as any} size={20} color="#fff" />
+                  </LinearGradient>
 
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={item.isDestructive ? "#FF6B6B" : "#666"}
-              />
-            </TouchableOpacity>
-          ))}
+                  <View style={styles.menuText}>
+                    <Text
+                      style={[
+                        styles.menuTitle,
+                        { color: item.isDestructive ? "#FF6B6B" : "#fff" },
+                      ]}
+                    >
+                      {item.title}
+                    </Text>
+                    <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                  </View>
+
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color={item.isDestructive ? "#FF6B6B" : "#666"}
+                  />
+                </TouchableOpacity>
+              ))
+            : guestUserMenuItems.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={item.onPress}
+                  style={[
+                    styles.menuItem,
+                    item.isDestructive && styles.destructiveItem,
+                  ]}
+                  disabled={item.title === "Delete Account" && !isLoggedIn}
+                >
+                  <LinearGradient
+                    colors={item.gradient}
+                    style={styles.menuIconContainer}
+                  >
+                    <Ionicons name={item.icon as any} size={20} color="#fff" />
+                  </LinearGradient>
+
+                  <View style={styles.menuText}>
+                    <Text
+                      style={[
+                        styles.menuTitle,
+                        { color: item.isDestructive ? "#FF6B6B" : "#fff" },
+                      ]}
+                    >
+                      {item.title}
+                    </Text>
+                    <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                  </View>
+
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color={item.isDestructive ? "#FF6B6B" : "#666"}
+                  />
+                </TouchableOpacity>
+              ))}
         </Animated.View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>App Version 1.0.0</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -401,6 +509,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#131a29",
+    paddingBottom: 0,
+    paddingTop: 40,
   },
   header: {
     flexDirection: "row",
@@ -432,7 +542,6 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
   },
   avatarContainer: {
-    marginBottom: 16,
     position: "relative",
   },
   avatarGradient: {
@@ -467,7 +576,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 24,
     fontWeight: "bold",
-    marginTop: 12,
   },
   email: {
     color: "#ccc",
@@ -577,9 +685,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   achievementIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
@@ -591,7 +699,7 @@ const styles = StyleSheet.create({
   },
   achievementText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 16,
     textAlign: "center",
   },
   achievementTextLocked: {

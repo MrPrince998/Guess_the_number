@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "Guess The Number",
+    "slug": "guess-the-number",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/guess-the-number-logo.png",
@@ -35,7 +35,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

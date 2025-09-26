@@ -1,4 +1,3 @@
-import { Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React, {
   createContext,
@@ -6,33 +5,14 @@ import React, {
   useContext,
   useEffect,
 } from "react";
+import { AppState } from "react-native";
 import { supabase, supabaseAdmin } from "../lib/supabase";
-
-type AuthData = {
-  session: Session | null;
-  mounting: boolean;
-  user: UserProfile | null;
-  isLoggedIn: boolean;
-  logout: () => Promise<void>;
-  handleDeleteAccount: () => Promise<void>;
-};
-
-type UserProfile = {
-  id: string;
-  created_at: string;
-  username: string;
-  email: string;
-  user_images: string | null;
-  level: number;
-  experience: number;
-  coin: number;
-  theme_type: string;
-  is_online?: boolean;
-  game_played: number;
-  games_won: number;
-  games_lost: number;
-  invite_code: string;
-};
+import {
+  achievements,
+  AuthData,
+  userAchievements,
+  UserProfile,
+} from "../types/types";
 
 const AuthContext = createContext<AuthData>({
   session: null,
@@ -41,6 +21,8 @@ const AuthContext = createContext<AuthData>({
   isLoggedIn: false,
   logout: async () => {},
   handleDeleteAccount: async () => {},
+  levelData: [],
+  achievements: [],
 });
 
 const AuthProvider = ({ children }: PropsWithChildren) => {
@@ -57,7 +39,7 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
   });
 
   // fetch user when sesssion exists
-  const { data: userData, isLoading: userLoading } = useQuery({
+  const { data: userData, isLoading: userLoading } = useQuery<UserProfile>({
     queryKey: ["user", sessionData?.user.id],
     queryFn: async () => {
       if (!sessionData) return null;
@@ -70,10 +52,116 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
       return data;
     },
     enabled: Boolean(sessionData?.user.id),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: Infinity,
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
+    refetchInterval: 30000, // 30 seconds
   });
+
+  const channel = supabase
+    .channel("user-updates")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "players",
+        filter: `id=eq.${sessionData?.user.id}`,
+      },
+      (payload) => {
+        queryClient.setQueryData(["user", sessionData?.user.id], payload.new);
+      }
+    )
+    .subscribe();
+
+  const fetchUserAchievements = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("player_achievements")
+      .select("*")
+      .eq("player_id", userId);
+    if (error) throw error;
+    return data as userAchievements[];
+  };
+
+  // fetch user achievements
+  const { data: userAchievements } = useQuery<userAchievements[]>({
+    queryKey: ["user-achievements", sessionData?.user.id],
+    queryFn: () => fetchUserAchievements(sessionData!.user.id),
+    enabled: Boolean(sessionData?.user.id),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+    refetchInterval: 5000,
+  });
+
+  // fetch all achievements
+  const { data: allAchievements } = useQuery<achievements[]>({
+    queryKey: ["all-achievements"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("achievements").select("*");
+      if (error) throw error;
+      return data as achievements[];
+    },
+    staleTime: Infinity,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+  });
+
+  // update user online in every 30 seconds
+  useEffect(() => {
+    if (!userData?.id) return;
+
+    const interval = setInterval(async () => {
+      await supabase
+        .from("players")
+        .update({ is_online: true })
+        .eq("id", userData?.id);
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [userData?.id]);
+
+  // update user online based on app state
+  useEffect(() => {
+    if (!userData?.id) return;
+
+    const subscription = AppState.addEventListener(
+      "change",
+      async (nextAppstate) => {
+        if (nextAppstate === "active") {
+          await supabase
+            .from("players")
+            .update({ is_online: true })
+            .eq("id", userData?.id);
+        } else {
+          await supabase
+            .from("players")
+            .update({ is_online: false })
+            .eq("id", userData?.id);
+        }
+      }
+    );
+
+    return () => subscription.remove();
+  }, [userData?.id]);
+
+  const { data: levelData } = useQuery({
+    queryKey: ["levels"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("level_thresholds")
+        .select("*");
+
+      console.log("Supabase data:", data, "error:", error);
+      return data;
+    },
+    enabled: true,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  console.log("levelData", levelData);
 
   useEffect(() => {
     if (!sessionData?.user.id) return;
@@ -90,8 +178,6 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
           filter: `id=eq.${sessionData.user.id}`,
         },
         (payload) => {
-          console.log("User change received!", payload);
-
           queryClient.invalidateQueries({
             queryKey: ["user", sessionData.user.id],
           });
@@ -184,8 +270,6 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
   };
 
   useEffect(() => {
-    console.log(sessionData?.access_token);
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -196,15 +280,25 @@ const AuthProvider = ({ children }: PropsWithChildren) => {
     return () => subscription.unsubscribe();
   }, [queryClient]);
 
+  const data = { ...userData, achievements: userAchievements };
+
   return (
     <AuthContext.Provider
       value={{
         session: sessionData ?? null,
         mounting: sessionLoading || userLoading,
-        user: userData ?? null,
+        user: userData
+          ? {
+              ...userData,
+              id: userData.id ?? "",
+              achievements: userAchievements ?? [],
+            }
+          : null,
         isLoggedIn: !!sessionData,
         logout,
         handleDeleteAccount,
+        levelData: levelData || [],
+        achievements: allAchievements || [],
       }}
     >
       {children}

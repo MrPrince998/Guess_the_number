@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { VictoryPie } from "victory-native";
+import Svg, { Circle, G } from "react-native-svg";
 import Ionicons from "react-native-vector-icons/Ionicons";
 
 const { width } = Dimensions.get("window");
@@ -42,12 +42,55 @@ const StatsScreen = () => {
     outputRange: ["0%", `${playerStats.winPercentage}%`],
   });
 
-  const chartData = [
-    { x: "Wins", y: playerStats.gamesWon },
-    { x: "Losses", y: playerStats.gamesLost },
-  ];
+  // Custom pie chart component
+  const CustomPieChart = ({
+    wins,
+    losses,
+  }: {
+    wins: number;
+    losses: number;
+  }) => {
+    const total = wins + losses;
+    const winsPercentage = (wins / total) * 100;
+    const radius = 60;
+    const strokeWidth = 12;
+    const circumference = 2 * Math.PI * radius;
+    const winsStroke = (winsPercentage / 100) * circumference;
 
-  const StatCard = ({ title, value, icon, color, gradient, subtitle }:any) => (
+    return (
+      <View style={styles.pieChartContainer}>
+        <Svg width={140} height={140}>
+          <G x={70} y={70}>
+            {/* Background circle */}
+            <Circle
+              r={radius}
+              stroke="#F44336"
+              strokeWidth={strokeWidth}
+              fill="transparent"
+            />
+            {/* Wins circle */}
+            <Circle
+              r={radius}
+              stroke="#4CAF50"
+              strokeWidth={strokeWidth}
+              fill="transparent"
+              strokeDasharray={`${winsStroke} ${circumference}`}
+              strokeLinecap="round"
+              transform="rotate(-90)"
+            />
+          </G>
+        </Svg>
+        <View style={styles.pieChartCenter}>
+          <Text style={styles.pieChartPercentage}>
+            {Math.round(winsPercentage)}%
+          </Text>
+          <Text style={styles.pieChartLabel}>Wins</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const StatCard = ({ title, value, icon, color, gradient, subtitle }: any) => (
     <LinearGradient
       colors={gradient}
       style={[styles.statCard, { borderLeftColor: color }]}
@@ -63,7 +106,7 @@ const StatsScreen = () => {
     </LinearGradient>
   );
 
-  const ProgressStat = ({ label, value, max, color, icon }:any) => (
+  const ProgressStat = ({ label, value, max, color, icon }: any) => (
     <View style={styles.progressContainer}>
       <View style={styles.progressHeader}>
         <View style={styles.progressLabel}>
@@ -191,22 +234,26 @@ const StatsScreen = () => {
         <View style={styles.chartContainer}>
           <Text style={styles.sectionTitle}>Win/Loss Ratio</Text>
           <View style={styles.chartWrapper}>
-            <VictoryPie
-              data={chartData}
-              width={width - 40}
-              height={200}
-              colorScale={["#4CAF50", "#F44336"]}
-              innerRadius={50}
-              labelComponent={<></>}
+            <CustomPieChart
+              wins={playerStats.gamesWon}
+              losses={playerStats.gamesLost}
             />
             <View style={styles.chartLegend}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendColor, { backgroundColor: "#4CAF50" }]} />
-                <Text style={styles.legendText}>Wins ({playerStats.gamesWon})</Text>
+                <View
+                  style={[styles.legendColor, { backgroundColor: "#4CAF50" }]}
+                />
+                <Text style={styles.legendText}>
+                  Wins ({playerStats.gamesWon})
+                </Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendColor, { backgroundColor: "#F44336" }]} />
-                <Text style={styles.legendText}>Losses ({playerStats.gamesLost})</Text>
+                <View
+                  style={[styles.legendColor, { backgroundColor: "#F44336" }]}
+                />
+                <Text style={styles.legendText}>
+                  Losses ({playerStats.gamesLost})
+                </Text>
               </View>
             </View>
           </View>
@@ -403,6 +450,27 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     alignItems: "center",
+  },
+  pieChartContainer: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  pieChartCenter: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pieChartPercentage: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#4CAF50",
+  },
+  pieChartLabel: {
+    fontSize: 12,
+    color: "#fff",
+    marginTop: 2,
   },
   chartLegend: {
     flexDirection: "row",
